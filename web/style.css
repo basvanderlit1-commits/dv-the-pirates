@@ -390,3 +390,18 @@ input.zoek:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   #stand td:nth-child(2) { white-space: normal; line-height: 1.25; overflow-wrap: anywhere; }
   #stand th:nth-child(3), #stand td:nth-child(3) { display: none; } /* gespeeld: telefoon te smal */
 }
+/* ranglijst: top 10 / 20 / 30 / alles */
+.rankfoot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; font-size: 13px; }
+.tabs button[aria-pressed="true"] { background: var(--raised); color: var(--ink); }
+@media (max-width: 760px) { .rankfoot .tabs { width: 100%; } .rankfoot .tabs button { flex: 1; } }
+/* clubpagina op de telefoon: tabellen passend maken */
+@media (max-width: 760px) {
+  #onderdelen .bar { min-width: 0; display: block; }
+  #onderdelen .bar .track { display: none; }
+  #onderdelen .bar .num { min-width: 0; text-align: left; display: block; white-space: normal; font-size: 12px; }
+  #onderdelen td, #onderdelen th { padding-inline: 4px; white-space: normal; }
+  #onderdelen td:first-child { min-width: 64px; }
+  #beker .bopp { display: none; }
+  #tfin th:nth-child(4), #tfin td:nth-child(4) { display: none; }
+  table.raster th:first-child, table.raster td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+}

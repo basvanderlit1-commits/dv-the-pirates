@@ -55,6 +55,7 @@
       <section class="panel" data-view="stand">
         <div class="ph"><h2 id="standTitle">Stand</h2><small id="standSub"></small></div>
         <div class="scroll"><table id="stand"></table></div>
+        <p class="note zlegend" id="zoneNote"></p>
       </section>
       <section class="panel" data-view="stand">
         <div class="ph"><h2>Verloop positie</h2><small id="verloopSub"></small></div>
@@ -109,6 +110,8 @@
       <div class="topic"><code id="topic"></code><button class="btn ghost" id="copyTopic" type="button">Kopiëren</button></div>
       <p class="note">Liever zonder app? Open <a id="topicWeb" target="_blank" rel="noopener"></a> in je browser en zet daar meldingen aan.</p>
       <p class="note">Alle uitslagen van de hele club? Abonneer je op <b id="clubTopic"></b> (<a id="clubLink2">uitleg op de clubsite</a>).</p>
+      <h3 class="sub-h" style="margin-top:16px">Alle wedstrijden in je agenda</h3>
+      <div id="agenda"></div>
     </section>
   </div>
 
@@ -124,6 +127,7 @@
   <button data-go="programma"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Programma</button>
 </nav>
 
+<script src="gedeeld.js"></script>
 <script>
 const D = /*DATA*/null;
 const $ = id => document.getElementById(id);
@@ -202,8 +206,9 @@ new ResizeObserver(drawChart).observe($("chart"));
 // ---- stand ----
 $("standTitle").textContent = `Stand ${D.div}`;
 $("standSub").textContent = `${D.stand.length} teams`;
+$("zoneNote").innerHTML = zoneLegend(D.stand.map(s => s.zone));
 $("stand").innerHTML = `<thead><tr><th class="n">#</th><th>Team</th><th class="n">Gesp</th><th class="n">W</th><th class="n">V</th><th class="n">Pnt</th><th class="n">Gem</th></tr></thead><tbody>` +
-  D.stand.map(s => `<tr class="${s.team === D.team ? "ours" : ""}"><td class="n">${s.pos}</td><td>${esc(s.team)}</td><td class="n">${s.wed}</td><td class="n">${s.w}</td><td class="n">${s.v}</td><td class="n"><b>${s.pnt}</b></td><td class="n">${nl(s.gem)}</td></tr>`).join("") + "</tbody>";
+  D.stand.map(s => `<tr class="${s.team === D.team ? "ours" : ""}"><td class="n"><span class="zone${s.zone ? " z-" + s.zone : ""}" title="${esc(ZONE[s.zone] || "")}">${s.pos}</span></td><td>${esc(s.team)}</td><td class="n">${s.wed}</td><td class="n">${s.w}</td><td class="n">${s.v}</td><td class="n"><b>${s.pnt}</b></td><td class="n">${nl(s.gem)}</td></tr>`).join("") + "</tbody>";
 
 // ---- spelers: tabel op desktop, kaarten op telefoon ----
 const bar = ([g, w]) => g
@@ -237,7 +242,7 @@ function matchHtml(m) {
     return list.length ? `<div><h4>${label}</h4>` + list.map(g => `<div class="game" title="${esc(g.onderdeel)}"><span class="us">${esc(g.wij)}</span><span class="legs">${g.lw}–${g.lz}</span><span class="them">${esc(g.zij)}</span>${pill(g.uitslag)}</div>`).join("") + "</div>" : "";
   }).join("");
   return `<details class="match"><summary>${rn}<span class="opp"><b>${esc(m.tegen)}</b>${sub}</span><span class="score">${m.wij}–${m.zij}</span>${pill(m.uitslag)}<span class="chev">›</span></summary>
-    <div class="detail"><div class="meta">${esc(m.locatie)}${m.form ? ` · <a href="${esc(m.form)}" target="_blank" rel="noopener">Wedstrijdformulier ↗</a>` : ""}</div><div class="games">${groups}</div></div></details>`;
+    <div class="detail"><div class="meta">${esc(m.locatie)}${m.form ? ` · <a href="${esc(m.form)}" target="_blank" rel="noopener">Wedstrijdformulier ↗</a>` : ""} <button class="btn ghost share" type="button" data-share="${esc(m.ronde)}">Deel uitslag</button></div><div class="games">${groups}</div></div></details>`;
 }
 function showProgramma(f) {
   const list = f === "gespeeld" ? [...played].reverse() : f === "todo" ? todo : D.matches;
@@ -390,6 +395,8 @@ function openProfiel(naam) {
   dlg.scrollTop = 0;
 }
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+// ?speler=Naam (vanaf de clubsite) opent meteen dat profiel
+const deeplink = new URLSearchParams(location.search).get("speler");
 document.querySelectorAll("[data-naam]").forEach(el => {
   el.addEventListener("click", () => openProfiel(el.dataset.naam));
   el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openProfiel(el.dataset.naam); } });
@@ -420,7 +427,19 @@ document.querySelectorAll("nav.bnav button").forEach(b => b.addEventListener("cl
   history.replaceState(null, "", "#" + b.dataset.go);
   go(b.dataset.go, true);
 }));
-go(location.hash.slice(1));
+go(deeplink ? "spelers" : location.hash.slice(1));
+if (deeplink) openProfiel(deeplink);
+
+// ---- agenda en uitslag delen ----
+$("agenda").innerHTML = agendaRow("", D.ics);
+bindCopy();
+$("programma").addEventListener("click", e => {
+  const b = e.target.closest("[data-share]");
+  if (!b) return;
+  const m = D.matches.find(x => x.ronde === b.dataset.share);
+  shareResult({ team: D.team, tegen: m.tegen, wij: m.wij, zij: m.zij, uitslag: m.uitslag, tu: m.tu, datum: m.datum,
+    wat: beker(m) ? "Beker" : "Ronde " + m.ronde, div: D.div }, b);
+});
 
 // ---- offline: laatste versie bewaren ----
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});

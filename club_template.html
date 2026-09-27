@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Lilita+One&family=Source+Sans+3:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
-<body data-v="teams">
+<body data-v="club">
 
 <header class="top">
   <img class="banner" src="banner.png" alt="D.V. The Pirates, est. 1985" width="1046" height="197">
@@ -34,87 +34,206 @@
 </div></header>
 
 <main class="wrap">
-  <section class="kpis" id="kpis" data-view="teams" aria-label="Kerncijfers van de club"></section>
+  <section class="kpis" id="kpis" data-view="club" aria-label="Kerncijfers van de club"></section>
+
+  <div class="three">
+    <section class="panel" data-view="club"><div class="ph"><h2>Speler van de week</h2><small id="spvwSub"></small></div><div id="spvw"></div></section>
+    <section class="panel" data-view="club"><div class="ph"><h2>Uitslag van de week</h2></div><div id="uvw"></div></section>
+    <section class="panel" data-view="club"><div class="ph"><h2>Reeksen</h2><small>nu bezig</small></div><div id="reeksen"></div></section>
+  </div>
 
   <section class="panel" data-view="teams">
     <div class="ph"><h2>Teams</h2><small>Tik op een team voor het dashboard</small></div>
     <div class="tcards" id="teams"></div>
   </section>
 
-  <section class="panel" data-view="week">
-    <div class="ph"><h2 id="weekTitle">Deze week</h2><small id="weekSub"></small></div>
-    <div id="week"></div>
+  <div class="two">
+    <section class="panel" data-view="week">
+      <div class="ph"><h2 id="weekTitle">Deze week</h2><small id="weekSub"></small></div>
+      <div id="week"></div>
+    </section>
+    <section class="panel" data-view="week">
+      <div class="ph"><h2>Thuis in het clubhuis</h2><small id="thuisSub"></small></div>
+      <div id="thuis"></div>
+    </section>
+  </div>
+
+  <section class="panel" data-view="teams">
+    <div class="ph"><h2>Vormraster</h2><small>alle gespeelde avonden</small></div>
+    <div class="scroll"><table class="raster" id="raster"></table></div>
   </section>
 
   <div class="two">
-    <section class="panel" data-view="toppers">
+    <section class="panel" data-view="club">
+      <div class="ph"><h2>Seizoensverloop</h2><small>avonden van de club per speelweek</small></div>
+      <div class="chart small" id="verloop"></div>
+      <div class="legend"><span><i style="background:var(--win)"></i>Gewonnen</span><span><i style="background:var(--loss)"></i>Verloren</span><span><i style="background:var(--accent);height:3px"></i>Winst% tot en met die week</span></div>
+    </section>
+    <section class="panel" data-view="club">
+      <div class="ph"><h2>Mijlpalen</h2><small>dit seizoen</small></div>
+      <ul class="mijl" id="mijl"></ul>
+    </section>
+  </div>
+
+  <div class="two">
+    <section class="panel" data-view="teams">
+      <div class="ph"><h2>Divisiepiramide</h2><small>waar de club staat</small></div>
+      <div class="pyr" id="pyr"></div>
+      <p class="note zlegend" id="pyrNote"></p>
+    </section>
+    <section class="panel" data-view="teams">
+      <div class="ph"><h2>Per onderdeel</h2><small>gewonnen partijen, incl. beker</small></div>
+      <div class="scroll"><table id="onderdelen"></table></div>
+      <p class="note">Round robin per leg van 301. Team = de teampartij in de beker.</p>
+    </section>
+  </div>
+
+  <div class="two">
+    <section class="panel" data-view="teams">
+      <div class="ph"><h2>Beker</h2></div>
+      <div class="scroll"><table id="beker"></table></div>
+    </section>
+    <section class="panel" data-view="teams">
+      <div class="ph"><h2>Derby's</h2><small>Pirates tegen Pirates</small></div>
+      <div id="derby"></div>
+    </section>
+  </div>
+
+  <section class="panel" data-view="spelers">
+    <div class="ph"><h2>Zoek een speler</h2><small id="zoekSub"></small></div>
+    <input class="zoek" id="zoekIn" type="search" placeholder="Naam of team…" autocomplete="off" aria-label="Zoek een speler">
+    <div class="zoekres" id="zoekRes"></div>
+  </section>
+
+  <section class="panel" data-view="spelers">
+    <div class="ph">
+      <h2>Ranglijst spelers</h2>
+      <div class="tabs" role="tablist" id="rankTabs">
+        <button role="tab" data-r="Single" aria-selected="true">Singles</button>
+        <button role="tab" data-r="Koppel" aria-selected="false">Koppels</button>
+        <button role="tab" data-r="RR" aria-selected="false">RR</button>
+        <button role="tab" data-r="Totaal" aria-selected="false">Totaal</button>
+        <button role="tab" data-r="Saldo" aria-selected="false">Legs</button>
+      </div>
+    </div>
+    <div class="scroll"><table id="rank"></table></div>
+    <p class="note" id="rankNote"></p>
+  </section>
+
+  <div class="two">
+    <section class="panel" data-view="spelers">
       <div class="ph"><h2>180's</h2><small id="n180"></small></div>
       <div class="scroll"><table id="t180"></table></div>
     </section>
-    <section class="panel" data-view="toppers">
+    <section class="panel" data-view="spelers">
       <div class="ph"><h2>Hoogste finishes</h2><small>100 of hoger</small></div>
       <div class="scroll"><table id="tfin"></table></div>
     </section>
   </div>
 
-  <section class="panel" id="meldingen" data-view="meldingen">
-    <div class="ph"><h2>Uitslag direct op je telefoon</h2></div>
-    <p class="lead">Na elke speelavond een melding met de uitslag en de nieuwe stand, via de gratis app <b>ntfy</b>. Geen account nodig.</p>
-    <ol class="steps">
-      <li>Installeer ntfy: <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a> · <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a></li>
-      <li>Tik in de app op <b>+</b> en abonneer je op een onderwerp hieronder. Meerdere mag ook.</li>
-    </ol>
-    <h3 class="sub-h" style="margin-top:14px">Alle uitslagen van de club</h3>
-    <div id="clubtopic"></div>
-    <h3 class="sub-h" style="margin-top:14px">Eén team</h3>
-    <div id="topics"></div>
-    <p class="note">Liever zonder app? Tik op de naam van een onderwerp om het in je browser te openen en zet daar meldingen aan.</p>
-  </section>
+  <div class="two">
+    <section class="panel" id="agendaPanel" data-view="week">
+      <div class="ph"><h2>Wedstrijden in je agenda</h2><small>iCal</small></div>
+      <p class="lead">Eén keer abonneren, dan staan alle wedstrijden met adres in de agenda van je telefoon. Nieuwe uitslagen en wijzigingen komen vanzelf door.</p>
+      <h3 class="sub-h">De hele club</h3>
+      <div id="agendaClub"></div>
+      <h3 class="sub-h" style="margin-top:14px">Eén team</h3>
+      <div id="agendaTeams"></div>
+    </section>
+    <section class="panel" id="meldingen" data-view="meldingen">
+      <div class="ph"><h2>Uitslag direct op je telefoon</h2></div>
+      <p class="lead">Na elke speelavond een melding met de uitslag en de nieuwe stand, via de gratis app <b>ntfy</b>. Geen account nodig.</p>
+      <ol class="steps">
+        <li>Installeer ntfy: <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank" rel="noopener">iPhone</a> · <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank" rel="noopener">Android</a></li>
+        <li>Tik in de app op <b>+</b> en abonneer je op een onderwerp hieronder. Meerdere mag ook.</li>
+      </ol>
+      <h3 class="sub-h" style="margin-top:14px">Alle uitslagen van de club</h3>
+      <div id="clubtopic"></div>
+      <h3 class="sub-h" style="margin-top:14px">Eén team</h3>
+      <div id="topics"></div>
+      <p class="note">Liever zonder app? Tik op de naam van een onderwerp om het in je browser te openen en zet daar meldingen aan.</p>
+    </section>
+  </div>
 
   <footer id="foot"></footer>
 </main>
 
 <nav class="bnav" aria-label="Onderdelen">
-  <button data-go="teams"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg>Teams</button>
-  <button data-go="week"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Deze week</button>
-  <button data-go="toppers"><svg viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/></svg>Toppers</button>
+  <button data-go="club"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg>Club</button>
+  <button data-go="teams"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z"/></svg>Teams</button>
+  <button data-go="week"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Week</button>
+  <button data-go="spelers"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M18.5 14.8c1.7.8 2.7 2.6 3 5.2"/></svg>Spelers</button>
   <button data-go="meldingen"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2zM10 21h4"/></svg>Meldingen</button>
 </nav>
 
+<script src="gedeeld.js"></script>
 <script>
 const D = /*DATA*/null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const nl = (v, d = 1) => Number(v).toLocaleString("nl-NL", {minimumFractionDigits: d, maximumFractionDigits: d});
+const pct = (w, n) => n ? Math.round(100 * w / n) : 0;
 const pill = r => r ? `<span class="pill ${r}">${r}</span>` : "";
 const toDate = s => { const [d, m, y] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const mon = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return addDays(x, -((x.getDay() + 6) % 7)); };
+const inWeek = (s, w) => { const d = toDate(s); return d >= w && d < addDays(w, 7); };
+const byDate = (a, b) => toDate(a.datum) - toDate(b.datum);
 const beker = m => m.ronde.startsWith("b");
+const rnd = r => r.startsWith("b") ? "B" + r.slice(1) : "R" + r;
 const maps = loc => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`;
 const DAG = ["zo", "ma", "di", "wo", "do", "vr", "za"];
 const dag = s => `${DAG[toDate(s).getDay()]} ${s.slice(0, 5)}`;
+const fmt = d => d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
 const today = new Date(); today.setHours(0, 0, 0, 0);
 const when = s => { const n = Math.round((toDate(s) - today) / 864e5); return n < 0 ? "gespeeld" : n === 0 ? "vandaag" : n === 1 ? "morgen" : `over ${n} dagen`; };
+const bar = (w, n) => n
+  ? `<div class="bar"><div class="track"><div class="fill" style="width:${pct(w, n)}%"></div></div><span class="num"><b>${w}</b>/${n} · ${pct(w, n)}%</span></div>`
+  : `<span class="dim">–</span>`;
+const tail = (arr, f) => { let n = 0; for (let i = arr.length - 1; i >= 0 && f(arr[i]); i--) n++; return n; };
+
+// ---- data: teams, partijen en spelers van de hele club ----
 const T = D.teams.map(t => ({ ...t,
-  played: t.matches.filter(m => m.uitslag),
-  todo: t.matches.filter(m => !m.uitslag && !m.vrij) }));
+  played: t.matches.filter(m => m.uitslag).sort(byDate),
+  todo: t.matches.filter(m => !m.uitslag && !m.vrij),
+  games: t.games.map(([ronde, type, wij, uitslag, lw, lz]) => ({ team: t.naam, url: t.url, ronde, type, spelers: wij.split(", "), uitslag, lw, lz,
+    datum: (t.matches.find(m => m.ronde === ronde) || {}).datum })) }));
 // volgende wedstrijd = de dichtstbijzijnde in de toekomst
-const volgende = t => t.todo.filter(m => toDate(m.datum) >= today).sort((a, b) => toDate(a.datum) - toDate(b.datum))[0];
-const all = T.flatMap(t => t.matches.filter(m => !m.vrij).map(m => ({ ...m, team: t.naam, url: t.url })));
+const volgende = t => t.todo.filter(m => toDate(m.datum) >= today).sort(byDate)[0];
+const all = T.flatMap(t => t.matches.filter(m => !m.vrij).map(m => ({ ...m, team: t.naam, url: t.url, div: t.div })));
+const G = T.flatMap(t => t.games);
+const P = {};
+G.filter(g => g.type !== "Team").forEach(g => g.spelers.forEach(n => {
+  const p = P[n + "|" + g.team] ??= { naam: n, team: g.team, url: g.url, Single: [0, 0], Koppel: [0, 0], RR: [0, 0], lv: 0, lt: 0, games: [] };
+  p[g.type][0]++; p[g.type][1] += g.uitslag === "W"; p.lv += g.lw; p.lt += g.lz; p.games.push(g);
+}));
+const players = Object.values(P);
+players.forEach(p => p.games.sort(byDate));
+const profiel = (naam, url) => `${url}?speler=${encodeURIComponent(naam)}`;
+const who = (naam, team) => { const t = T.find(x => x.naam === team); return t ? `<a class="plink" href="${esc(profiel(naam, t.url))}">${esc(naam)}</a>` : esc(naam); };
+const bijz = T.flatMap(t => t.bijz.map(b => ({ ...b, team: t.naam })));
+const is180 = b => /180/.test(b.prestatie);
+const fins = bijz.filter(b => /finish/.test(b.prestatie)).map(b => ({ ...b, v: parseInt(b.prestatie, 10) })).sort((a, b) => b.v - a.v);
+const n180 = bijz.filter(is180).length;
+const SHARE = {};  // deelknoppen: id -> uitslag
+const shareBtn = m => {
+  const id = m.team + "|" + m.ronde;
+  SHARE[id] = { team: m.team, tegen: m.tegen, wij: m.wij, zij: m.zij, uitslag: m.uitslag, tu: m.tu, datum: m.datum, wat: beker(m) ? "Beker" : "Ronde " + m.ronde, div: m.div };
+  return `<button class="btn ghost share" type="button" data-share="${esc(id)}">Deel</button>`;
+};
 
 $("meta").textContent = `DBMN · seizoen ${D.seizoen} · ${T.length} teams`;
 
 // ---- eerstvolgende speelavond ----
-const upcoming = all.filter(m => !m.uitslag && toDate(m.datum) >= today).sort((a, b) => toDate(a.datum) - toDate(b.datum));
+const upcoming = all.filter(m => !m.uitslag && toDate(m.datum) >= today).sort(byDate);
 const nd = upcoming[0]?.datum, onNd = upcoming.filter(m => m.datum === nd);
 $("next").innerHTML = nd
   ? `<div class="eyebrow">Volgende speelavond · <span class="when">${when(nd)}</span></div><b>${dag(nd)}</b><small>${onNd.map(m => esc(m.team)).join(" · ")}</small>`
   : `<div class="eyebrow">Seizoen</div><b>Alle wedstrijden gespeeld</b>`;
 
 // ---- kerncijfers ----
-const pl = T.flatMap(t => t.played), wins = pl.filter(m => m.uitslag === "W").length;
-const bijz = T.flatMap(t => t.bijz.map(b => ({ ...b, team: t.naam })));
-const n180 = bijz.filter(b => /180/.test(b.prestatie)).length;
-const fins = bijz.filter(b => /finish/.test(b.prestatie)).map(b => ({ ...b, v: parseInt(b.prestatie, 10) })).sort((a, b) => b.v - a.v);
+const pl = T.flatMap(t => t.played.map(m => ({ ...m, team: t.naam, url: t.url, div: t.div })));
+const wins = pl.filter(m => m.uitslag === "W").length;
 const best = [...T].filter(t => t.pos).sort((a, b) => a.pos - b.pos || b.pnt - a.pnt)[0];
 $("kpis").innerHTML = [
   ["Teams", T.length, "in de DBMN", true],
@@ -125,12 +244,51 @@ $("kpis").innerHTML = [
   ["Nog te spelen", T.reduce((a, t) => a + t.todo.length, 0), "wedstrijden"],
 ].map(([l, v, s, lead]) => `<div class="kpi${lead ? " lead" : ""}"><div class="lbl">${l}</div><div class="val">${esc(v)}</div><div class="sub">${esc(s)}</div></div>`).join("");
 
+// ---- speler en uitslag van de week (laatste week met gespeelde wedstrijden) ----
+const lastDay = pl.map(m => toDate(m.datum)).sort((a, b) => b - a)[0];
+const wk = lastDay && mon(lastDay);
+(function vanDeWeek() {
+  if (!wk) { $("spvw").innerHTML = $("uvw").innerHTML = `<p class="empty">Nog niets gespeeld.</p>`; return; }
+  const lbl = `week van ${fmt(wk)}`;
+  $("spvwSub").textContent = lbl;
+  // punten: gewonnen partijen, plus 1 voor elke 180 en elke finish van 100+; bij gelijkstand winst% en legsaldo
+  const kand = players.map(p => {
+    const gs = p.games.filter(g => inWeek(g.datum, wk)), w = gs.filter(g => g.uitslag === "W").length;
+    const bz = bijz.filter(b => b.speler === p.naam && b.team === p.team && inWeek(b.datum, wk));
+    return { p, gs, w, bz, lv: gs.reduce((a, g) => a + g.lw, 0), lt: gs.reduce((a, g) => a + g.lz, 0), score: w + bz.length };
+  }).filter(x => x.gs.length).sort((a, b) => b.score - a.score || b.w / b.gs.length - a.w / a.gs.length || (b.lv - b.lt) - (a.lv - a.lt));
+  const badges = x => x.bz.map(b => `<span class="badge">${is180(b) ? "180" : esc(b.prestatie.replace(" finish", "")) + " finish"}</span>`).join("");
+  const [top, ...rest] = kand;
+  $("spvw").innerHTML = top ? `<div class="spot"><div class="big">${who(top.p.naam, top.p.team)}</div><div class="sub">${esc(top.p.team)}</div>
+      <div class="spotnum"><b>${top.w}/${top.gs.length}</b> partijen gewonnen · legs ${top.lv}–${top.lt}</div>${badges(top)}</div>
+    <ol class="runners">${rest.slice(0, 3).map(x => `<li><span>${who(x.p.naam, x.p.team)} <span class="dim">· ${esc(x.p.team)}</span></span><span class="dim">${x.w}/${x.gs.length}${x.bz.length ? " · " + x.bz.map(b => is180(b) ? "180" : parseInt(b.prestatie, 10)).join(", ") : ""}</span></li>`).join("")}</ol>`
+    : `<p class="empty">Geen partijen in deze week.</p>`;
+  const wm = pl.filter(m => inWeek(m.datum, wk));
+  const bestM = [...wm].sort((a, b) => (b.wij - b.zij) - (a.wij - a.zij))[0];
+  const close = wm.filter(m => m !== bestM).sort((a, b) => Math.abs(a.wij - a.zij) - Math.abs(b.wij - b.zij))[0];
+  const card = (titel, m) => m ? `<div class="res"><div class="sub-h">${titel}</div><div class="resrow"><span class="resscore ${m.uitslag}">${m.wij}–${m.zij}</span>
+      <span><b>${esc(m.team)}</b><br><span class="dim">${m.tu === "Thuis" ? "thuis tegen" : "uit bij"} ${esc(m.tegen)} · ${dag(m.datum)}</span></span>${shareBtn(m)}</div></div>` : "";
+  $("uvw").innerHTML = card(bestM && bestM.uitslag === "W" ? "Grootste overwinning" : "Beste uitslag", bestM) + card("Spannendste avond", close)
+    + `<p class="note">${lbl}</p>`;
+})();
+
+// ---- reeksen (nu bezig) ----
+(function reeksen() {
+  const ts = T.map(t => ({ t, n: tail(t.played, m => m.uitslag === "W") })).filter(x => x.n >= 2).sort((a, b) => b.n - a.n);
+  const ps = players.map(p => ({ p, n: tail(p.games, g => g.uitslag === "W") })).filter(x => x.n >= 3).sort((a, b) => b.n - a.n || a.p.naam.localeCompare(b.p.naam)).slice(0, 5);
+  $("reeksen").innerHTML = `<h3 class="sub-h">Teams · avonden op rij gewonnen</h3>` +
+    (ts.length ? `<ol class="runners">${ts.map(x => `<li><a href="${esc(x.t.url)}">${esc(x.t.naam)}</a><b class="big">${x.n}</b></li>`).join("")}</ol>` : `<p class="empty">Geen team met 2 of meer op rij.</p>`) +
+    `<h3 class="sub-h" style="margin-top:14px">Spelers · partijen op rij gewonnen</h3>` +
+    (ps.length ? `<ol class="runners">${ps.map(x => `<li><span>${who(x.p.naam, x.p.team)} <span class="dim">· ${esc(x.p.team)}</span></span><b class="big">${x.n}</b></li>`).join("")}</ol>` : `<p class="empty">Geen speler met 3 of meer op rij.</p>`);
+})();
+
 // ---- teamkaarten ----
 $("teams").innerHTML = T.map(t => {
   const last = t.played.at(-1), nx = volgende(t);
   return `<a class="tcard" href="${esc(t.url)}">
     <div class="ttop"><b>${esc(t.naam).replace(/(\d+)$/, "<span>$1</span>")}</b><span class="tdiv">Divisie ${esc(t.div)}</span></div>
     <div class="tnums"><div><b>${t.pos ?? "–"}e</b><span>van ${t.teams}</span></div><div><b>${t.pnt ?? "–"}</b><span>punten</span></div><div><b>${t.gem != null ? nl(t.gem) : "–"}</b><span>gemiddeld</span></div></div>
+    ${t.zone ? `<div class="tzone"><span class="zone z-${t.zone}"></span>${ZONE[t.zone]}</div>` : ""}
     <div class="form">${t.played.slice(-5).map(m => pill(m.uitslag)).join("") || `<span class="dim">nog niet gespeeld</span>`}</div>
     <div class="tline"><span>Laatste</span><span>${last ? `${pill(last.uitslag)} <b>${last.wij}–${last.zij}</b> ${esc(last.tegen)}` : `<span class="dim">–</span>`}</span></div>
     <div class="tline"><span>Volgende</span><span>${nx ? `<b>${dag(nx.datum)}</b> ${esc(nx.tegen)} <span class="dim">· ${nx.tu.toLowerCase()}</span>` : `<span class="dim">seizoen klaar</span>`}</span></div>
@@ -139,16 +297,12 @@ $("teams").innerHTML = T.map(t => {
 
 // ---- deze week (of de eerstvolgende speelweek) ----
 (function week() {
-  const mon = d => { const x = new Date(d); x.setDate(x.getDate() - (x.getDay() + 6) % 7); return x; };
-  let start = mon(today);
-  const inWeek = s => { const d = toDate(s); return d >= start && d < new Date(start.getTime() + 7 * 864e5); };
-  let list = all.filter(m => inWeek(m.datum));
-  if (!list.length && upcoming.length) { start = mon(toDate(upcoming[0].datum)); list = all.filter(m => inWeek(m.datum)); $("weekTitle").textContent = "Volgende speelweek"; }
-  const end = new Date(start.getTime() + 6 * 864e5), fmt = d => d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
-  $("weekSub").textContent = `${fmt(start)} – ${fmt(end)}`;
+  let start = mon(today), list = all.filter(m => inWeek(m.datum, start));
+  if (!list.length && upcoming.length) { start = mon(toDate(upcoming[0].datum)); list = all.filter(m => inWeek(m.datum, start)); $("weekTitle").textContent = "Volgende speelweek"; }
+  $("weekSub").textContent = `${fmt(start)} – ${fmt(addDays(start, 6))}`;
   // een onderling duel van twee Pirates-teams maar één keer tonen
   const seen = new Set();
-  list = list.sort((a, b) => toDate(a.datum) - toDate(b.datum) || a.team.localeCompare(b.team)).filter(m => {
+  list = list.sort((a, b) => byDate(a, b) || a.team.localeCompare(b.team)).filter(m => {
     const k = m.datum + "|" + [m.team, m.tegen].sort().join("|");
     return seen.has(k) ? false : seen.add(k);
   });
@@ -157,40 +311,202 @@ $("teams").innerHTML = T.map(t => {
     const h = m.datum !== cur ? `<h3 class="sub-h wday">${dag(m.datum)} · ${when(m.datum)}</h3>` : "";
     cur = m.datum;
     return h + `<div class="wrow"><a class="wteam" href="${esc(m.url)}">${esc(m.team)}</a><span class="wopp"><small>${m.tu === "Thuis" ? "thuis tegen" : "uit bij"}</small> ${esc(m.tegen)}${beker(m) ? ` <small>· beker</small>` : ""}</span>
-      <span class="score${m.uitslag ? "" : " dim"}">${m.uitslag ? `${m.wij}–${m.zij}` : "–"}</span>${m.uitslag ? pill(m.uitslag) : m.locatie ? `<a class="route" href="${maps(m.locatie)}" target="_blank" rel="noopener" aria-label="Route naar ${esc(m.tegen)}">route ↗</a>` : "<span></span>"}</div>`;
+      <span class="score${m.uitslag ? "" : " dim"}">${m.uitslag ? `${m.wij}–${m.zij}` : "–"}</span>${m.uitslag ? `<span class="wend">${pill(m.uitslag)}${shareBtn(m)}</span>` : m.locatie ? `<a class="route" href="${maps(m.locatie)}" target="_blank" rel="noopener" aria-label="Route naar ${esc(m.tegen)}">route ↗</a>` : "<span></span>"}</div>`;
   }).join("") || `<p class="empty">Geen wedstrijden gepland.</p>`;
 })();
 
-// ---- toppers ----
+// ---- thuis in het clubhuis: deze en volgende week ----
+(function thuis() {
+  const start = mon(today), end = addDays(start, 14);
+  const list = all.filter(m => m.tu === "Thuis" && toDate(m.datum) >= start && toDate(m.datum) < end).sort((a, b) => byDate(a, b) || a.team.localeCompare(b.team));
+  $("thuisSub").textContent = `${fmt(start)} – ${fmt(addDays(end, -1))}`;
+  let cur = "";
+  $("thuis").innerHTML = list.map(m => {
+    const h = m.datum !== cur ? `<h3 class="sub-h wday">${dag(m.datum)} · ${when(m.datum)}</h3>` : "";
+    cur = m.datum;
+    return h + `<div class="hrow"><a class="wteam" href="${esc(m.url)}">${esc(m.team)}</a><span class="wopp"><small>tegen</small> ${esc(m.tegen)}</span>${m.uitslag ? `<span class="score">${m.wij}–${m.zij}</span>` : "<span></span>"}<small class="dim hloc">${esc(m.locatie)}</small></div>`;
+  }).join("") || `<p class="empty">Geen thuiswedstrijden in deze twee weken.</p>`;
+})();
+
+// ---- vormraster: teams x gespeelde rondes ----
+(function raster() {
+  const first = {};
+  T.forEach(t => t.played.forEach(m => { const d = toDate(m.datum); if (!first[m.ronde] || d < first[m.ronde]) first[m.ronde] = d; }));
+  const cols = Object.keys(first).sort((a, b) => first[a] - first[b] || a.localeCompare(b));
+  $("raster").innerHTML = cols.length ? `<thead><tr><th>Team</th>${cols.map(r => `<th class="c">${rnd(r)}</th>`).join("")}<th class="n">W–V</th></tr></thead><tbody>` +
+    T.map(t => `<tr><td><a href="${esc(t.url)}"><b>${esc(t.naam)}</b></a></td>${cols.map(r => {
+      const m = t.matches.find(x => x.ronde === r);
+      if (!m) return `<td class="c dim">·</td>`;
+      if (m.vrij) return `<td class="c dim">vrij</td>`;
+      if (!m.uitslag) return `<td class="c dim" title="${esc(m.tegen)} · ${esc(m.datum)} · nog geen uitslag">–</td>`;
+      return `<td class="c"><span class="cell ${m.uitslag}" title="${esc(m.tegen)} · ${esc(m.datum)}">${m.wij}–${m.zij}</span></td>`;
+    }).join("")}<td class="n"><b>${t.played.filter(m => m.uitslag === "W").length}–${t.played.filter(m => m.uitslag === "V").length}</b></td></tr>`).join("") + "</tbody>"
+    : `<tbody><tr><td class="empty">Nog geen avonden gespeeld.</td></tr></tbody>`;
+})();
+
+// ---- seizoensverloop: gewonnen/verloren avonden per speelweek + winst% tot dan ----
+const weken = Object.values(pl.reduce((a, m) => {
+  const d = mon(toDate(m.datum)), w = a[d.getTime()] ??= { d, W: 0, V: 0 };
+  if (m.uitslag === "W") w.W++; else if (m.uitslag === "V") w.V++;
+  return a;
+}, {})).sort((a, b) => a.d - b.d);
+function drawVerloop() {
+  const el = $("verloop"), W = el.clientWidth;
+  if (!W) return;
+  if (!weken.length) { el.innerHTML = `<p class="empty">Nog niets gespeeld.</p>`; return; }
+  const H = 200, L = 26, R = 40, Tp = 18, B = 30, max = Math.max(...weken.map(w => w.W + w.V));
+  const slot = (W - L - R) / weken.length, bw = Math.min(40, slot * .6);
+  const y = v => Tp + (H - Tp - B) * (1 - v / max), yp = p => Tp + (H - Tp - B) * (1 - p / 100);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gewonnen en verloren avonden per week">`;
+  for (const v of [...new Set([0, Math.ceil(max / 2), max])]) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  for (const p of [0, 50, 100]) s += `<text x="${W - R + 6}" y="${yp(p) + 4}" fill="var(--accent)">${p}%</text>`;
+  let cw = 0, cn = 0; const pts = [];
+  weken.forEach((w, i) => {
+    const cx = L + slot * (i + .5);
+    s += `<rect x="${cx - bw / 2}" y="${y(w.W)}" width="${bw}" height="${y(0) - y(w.W)}" fill="var(--win)"><title>${fmt(w.d)}: ${w.W} gewonnen</title></rect>`;
+    s += `<rect x="${cx - bw / 2}" y="${y(w.W + w.V)}" width="${bw}" height="${y(w.W) - y(w.W + w.V)}" fill="var(--loss)"><title>${fmt(w.d)}: ${w.V} verloren</title></rect>`;
+    s += `<text x="${cx}" y="${H - B + 18}" text-anchor="middle">${fmt(w.d)}</text>`;
+    cw += w.W; cn += w.W + w.V; pts.push([cx, yp(100 * cw / cn), Math.round(100 * cw / cn)]);
+  });
+  s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" points="${pts.map(p => p[0] + "," + p[1]).join(" ")}"/>`;
+  pts.forEach((p, i) => {
+    s += `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="var(--accent)"><title>${p[2]}% gewonnen tot en met deze week</title></circle>`;
+    if (i === pts.length - 1) s += `<text class="val" x="${p[0]}" y="${p[1] - 8}" text-anchor="middle">${p[2]}%</text>`;
+  });
+  el.innerHTML = s + "</svg>";
+}
+new ResizeObserver(drawVerloop).observe($("verloop"));
+
+// ---- mijlpalen ----
 const c180 = {};
-bijz.filter(b => /180/.test(b.prestatie)).forEach(b => { const k = b.speler + "|" + b.team; c180[k] = (c180[k] || 0) + 1; });
+bijz.filter(is180).forEach(b => { const k = b.speler + "|" + b.team; c180[k] = (c180[k] || 0) + 1; });
 const top180 = Object.entries(c180).sort(([a, x], [b, y]) => y - x || a.localeCompare(b));
+(function mijlpalen() {
+  const M = [];
+  if (fins[0]) M.push(`Hoogste finish van de club: <b>${fins[0].v}</b> door ${who(fins[0].speler, fins[0].team)} (${esc(fins[0].team)}, ${esc(fins[0].datum)})`);
+  if (n180) M.push(`De club gooide dit seizoen al <b>${n180}×</b> 180`);
+  if (top180[0] && top180[0][1] >= 2) { const [s, t] = top180[0][0].split("|"); M.push(`${who(s, t)} (${esc(t)}) gooide al <b>${top180[0][1]}×</b> 180`); }
+  pl.filter(m => m.uitslag === "W" && m.zij === 0).forEach(m => M.push(`${esc(m.team)} won met <b>${m.wij}–0</b> van ${esc(m.tegen)} (${esc(m.datum)})`));
+  T.filter(t => t.pos === 1).forEach(t => M.push(`<b>${esc(t.naam)}</b> staat bovenaan in divisie ${esc(t.div)}`));
+  T.filter(t => t.pos !== 1 && (t.zone === "kampioen" || t.zone === "promotie")).forEach(t => M.push(`<b>${esc(t.naam)}</b> staat op een promotieplek (${t.pos}e in ${esc(t.div)})`));
+  players.filter(p => p.Single[0] >= 3 && p.Single[1] === p.Single[0]).forEach(p => M.push(`${who(p.naam, p.team)} (${esc(p.team)}) won alle <b>${p.Single[0]}</b> singles`));
+  const won = p => p.Single[1] + p.Koppel[1] + p.RR[1];
+  const mostW = [...players].sort((a, b) => won(b) - won(a))[0];
+  if (mostW) M.push(`Meeste partijen gewonnen: ${who(mostW.naam, mostW.team)} (${esc(mostW.team)}) met <b>${won(mostW)}</b>`);
+  $("mijl").innerHTML = M.map(x => `<li>${x}</li>`).join("") || `<li class="empty">Nog geen mijlpalen.</li>`;
+})();
+
+// ---- divisiepiramide ----
+(function piramide() {
+  const lvl = t => /^\d/.test(t.div) ? parseInt(t.div, 10) : 0;  // "Ere" bovenaan
+  const levels = [...new Set([1, 2, 3, 4, ...T.map(lvl)])].sort((a, b) => a - b);
+  $("pyr").innerHTML = levels.map(l => `<div class="plevel" style="--w:${Math.min(100, 40 + 15 * l)}%"><span class="plabel">${l ? "Divisie " + l : "Ere"}</span>
+    <div class="pteams">${T.filter(t => lvl(t) === l).map(t => `<a class="pchip${t.zone ? " z-" + t.zone : ""}" href="${esc(t.url)}"><b>${esc(t.naam)}</b><span>${t.pos}e in ${esc(t.div)}</span></a>`).join("") || `<span class="dim">–</span>`}</div></div>`).join("");
+  $("pyrNote").innerHTML = zoneLegend(T.map(t => t.zone));
+})();
+
+// ---- per onderdeel ----
+(function onderdelen() {
+  const K = [["Single", "Singles"], ["Koppel", "Koppels"], ["RR", "Round robin"], ["Team", "Team"]];
+  const cnt = gs => Object.fromEntries(K.map(([k]) => { const x = gs.filter(g => g.type === k); return [k, [x.filter(g => g.uitslag === "W").length, x.length]]; }));
+  const row = (naam, c, cls = "") => `<tr class="${cls}"><td><b>${naam}</b></td>${K.map(([k]) => `<td>${bar(c[k][0], c[k][1])}</td>`).join("")}</tr>`;
+  $("onderdelen").innerHTML = `<thead><tr><th>Team</th>${K.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead><tbody>` +
+    T.map(t => row(`<a href="${esc(t.url)}">${esc(t.naam)}</a>`, cnt(t.games))).join("") + row("Club", cnt(G), "ours") + "</tbody>";
+})();
+
+// ---- beker ----
+(function bekerOverzicht() {
+  const rondes = [...new Set(T.flatMap(t => t.matches.filter(beker).map(m => m.ronde)))].sort();
+  const bt = T.filter(t => t.matches.some(beker));
+  $("beker").innerHTML = rondes.length ? `<thead><tr><th>Team</th>${rondes.map(r => `<th>${rnd(r)}</th>`).join("")}</tr></thead><tbody>` +
+    bt.map(t => `<tr><td><a href="${esc(t.url)}"><b>${esc(t.naam)}</b></a></td>${rondes.map(r => {
+      const m = t.matches.find(x => x.ronde === r);
+      if (!m) return `<td class="dim">–</td>`;
+      if (m.vrij) return `<td class="dim">vrije week</td>`;
+      if (!m.uitslag) return `<td><b>${dag(m.datum)}</b> <span class="dim">${esc(m.tegen)}</span></td>`;
+      return `<td>${pill(m.uitslag)} <b>${m.wij}–${m.zij}</b> <span class="dim">${esc(m.tegen)}</span></td>`;
+    }).join("")}</tr>`).join("") + "</tbody>"
+    : `<tbody><tr><td class="empty">Nog geen bekerwedstrijden.</td></tr></tbody>`;
+})();
+
+// ---- derby's: Pirates tegen Pirates ----
+(function derbys() {
+  const names = new Set(T.map(t => t.naam)), seen = new Set();
+  const list = all.filter(m => names.has(m.tegen)).filter(m => { const k = m.ronde + "|" + [m.team, m.tegen].sort().join("|"); return seen.has(k) ? false : seen.add(k); }).sort(byDate);
+  $("derby").innerHTML = list.length
+    ? list.map(m => `<div class="wrow"><b>${esc(m.team)}</b><span class="wopp"><small>${m.tu === "Thuis" ? "thuis tegen" : "uit bij"}</small> ${esc(m.tegen)} <small>· ${beker(m) ? "beker" : "ronde " + esc(m.ronde)} · ${dag(m.datum)}</small></span><span class="score${m.uitslag ? "" : " dim"}">${m.uitslag ? `${m.wij}–${m.zij}` : "–"}</span>${pill(m.uitslag) || "<span></span>"}</div>`).join("")
+    : `<p class="empty">Dit seizoen spelen alle Pirates-teams in een andere divisie. Lootten twee teams tegen elkaar in de beker, dan staat de derby hier.</p>`;
+})();
+
+// ---- zoek een speler ----
+(function zoek() {
+  const alle = T.flatMap(t => t.spelers.map(n => ({ naam: n, team: t.naam, url: t.url })));
+  $("zoekSub").textContent = `${alle.length} spelers`;
+  const show = () => {
+    const q = $("zoekIn").value.trim().toLowerCase();
+    const hits = q ? alle.filter(s => s.naam.toLowerCase().includes(q) || s.team.toLowerCase().includes(q)).slice(0, 12) : [];
+    $("zoekRes").innerHTML = hits.map(s => {
+      const p = P[s.naam + "|" + s.team], tot = p ? [p.Single, p.Koppel, p.RR].reduce((a, x) => [a[0] + x[0], a[1] + x[1]], [0, 0]) : [0, 0];
+      return `<a class="zhit" href="${esc(profiel(s.naam, s.url))}"><b>${esc(s.naam)}</b><span class="dim">${esc(s.team)} · ${tot[0] ? `${tot[1]}/${tot[0]} gewonnen` : "nog niet gespeeld"}</span></a>`;
+    }).join("") || (q ? `<p class="empty">Geen speler gevonden.</p>` : "");
+  };
+  $("zoekIn").addEventListener("input", show);
+  $("zoekIn").addEventListener("keydown", e => { if (e.key === "Enter") { const a = $("zoekRes").querySelector("a"); if (a) location.href = a.href; } });
+})();
+
+// ---- ranglijst spelers ----
+function rank(kind) {
+  let rows, note;
+  if (kind === "Saldo") {
+    const sal = p => p.lv - p.lt;
+    rows = [...players].sort((a, b) => sal(b) - sal(a) || b.lv - a.lv).slice(0, 15)
+      .map(p => [p, `<b class="${sal(p) > 0 ? "plus" : sal(p) < 0 ? "min" : ""}">${sal(p) > 0 ? "+" : ""}${sal(p)}</b> <span class="dim">legs ${p.lv}–${p.lt}</span>`]);
+    note = "Legsaldo over singles, koppels en round robin (competitie en beker).";
+  } else {
+    const get = p => kind === "Totaal" ? [p.Single, p.Koppel, p.RR].reduce((a, x) => [a[0] + x[0], a[1] + x[1]], [0, 0]) : p[kind];
+    const maxN = Math.max(0, ...players.map(p => get(p)[0])), min = Math.max(1, Math.ceil(maxN / 2));
+    rows = players.filter(p => get(p)[0] >= min).sort((a, b) => get(b)[1] / get(b)[0] - get(a)[1] / get(a)[0] || get(b)[0] - get(a)[0]).slice(0, 15)
+      .map(p => [p, bar(get(p)[1], get(p)[0])]);
+    note = `Op winstpercentage, met minimaal ${min} partijen (de helft van het meeste aantal: ${maxN}). Competitie en beker${kind === "RR" ? "; round robin per leg" : ""}.`;
+  }
+  $("rank").innerHTML = rows.length ? `<thead><tr><th class="n">#</th><th>Speler</th><th>Team</th><th>${kind === "Saldo" ? "Saldo" : "Gewonnen"}</th></tr></thead><tbody>` +
+    rows.map(([p, v], i) => `<tr><td class="n">${i + 1}</td><td>${who(p.naam, p.team)}<small class="rteam">${esc(p.team)}</small></td><td class="dim">${esc(p.team)}</td><td>${v}</td></tr>`).join("") + "</tbody>"
+    : `<tbody><tr><td class="empty">Nog geen partijen.</td></tr></tbody>`;
+  $("rankNote").textContent = note;
+  document.querySelectorAll("#rankTabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.r === kind));
+}
+document.querySelectorAll("#rankTabs button").forEach(b => b.addEventListener("click", () => rank(b.dataset.r)));
+rank("Single");
+
+// ---- 180's en finishes ----
 $("n180").textContent = `${n180} in totaal`;
 $("t180").innerHTML = top180.length
   ? `<thead><tr><th>Speler</th><th>Team</th><th class="n">180's</th></tr></thead><tbody>` +
-    top180.map(([k, n]) => { const [s, t] = k.split("|"); return `<tr><td><b>${esc(s)}</b></td><td class="dim">${esc(t)}</td><td class="n"><b class="big">${n}</b></td></tr>`; }).join("") + "</tbody>"
+    top180.map(([k, n]) => { const [s, t] = k.split("|"); return `<tr><td><b>${who(s, t)}</b></td><td class="dim">${esc(t)}</td><td class="n"><b class="big">${n}</b></td></tr>`; }).join("") + "</tbody>"
   : `<tbody><tr><td class="empty">Nog geen 180's gegooid.</td></tr></tbody>`;
 $("tfin").innerHTML = fins.length
   ? `<thead><tr><th class="n">Finish</th><th>Speler</th><th>Team</th><th>Datum</th></tr></thead><tbody>` +
-    fins.slice(0, 15).map(f => `<tr><td class="n"><b class="big">${f.v}</b></td><td><b>${esc(f.speler)}</b></td><td class="dim">${esc(f.team)}</td><td class="dim">${esc(f.datum)}</td></tr>`).join("") + "</tbody>"
+    fins.slice(0, 15).map(f => `<tr><td class="n"><b class="big">${f.v}</b></td><td><b>${who(f.speler, f.team)}</b></td><td class="dim">${esc(f.team)}</td><td class="dim">${esc(f.datum)}</td></tr>`).join("") + "</tbody>"
   : `<tbody><tr><td class="empty">Nog geen finishes van 100+.</td></tr></tbody>`;
 
-// ---- meldingen ----
+// ---- agenda, meldingen en delen ----
+$("agendaClub").innerHTML = agendaRow("", D.ics);
+$("agendaTeams").innerHTML = T.map(t => agendaRow(t.naam, t.url + t.ics)).join("");
 const topic = (label, t) => `<div class="topic">${label ? `<b class="tlabel">${esc(label)}</b>` : ""}<code><a href="https://ntfy.sh/${esc(t)}" target="_blank" rel="noopener">${esc(t)}</a></code><button class="btn ghost" type="button" data-copy="${esc(t)}">Kopiëren</button></div>`;
 $("clubtopic").innerHTML = topic("", D.ntfy);
 $("topics").innerHTML = T.map(t => `<h4 class="tname">${esc(t.naam)}</h4>` + topic(t.naam, t.ntfy)).join("");
-document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Gekopieerd"; }
-  catch (err) { getSelection().selectAllChildren(b.previousElementSibling); b.textContent = "Geselecteerd"; }
-  setTimeout(() => { b.textContent = "Kopiëren"; }, 2000);
-}));
+bindCopy();
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-share]");
+  if (b) shareResult(SHARE[b.dataset.share], b);
+});
 
 $("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span><a class="dl" href="${esc(D.pirates7)}">Eigen site van Pirates 7 ↗</a><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
 
 // ---- telefoon: tabbladen onderin (onthouden via #hash) ----
-const VIEWS = ["teams", "week", "toppers", "meldingen"];
+const VIEWS = ["club", "teams", "week", "spelers", "meldingen"];
 function go(v, scroll) {
-  if (!VIEWS.includes(v)) v = "teams";
+  if (!VIEWS.includes(v)) v = "club";
   document.body.dataset.v = v;
   document.querySelectorAll("nav.bnav button").forEach(b => {
     if (b.dataset.go === v) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");

@@ -17,7 +17,7 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 from requests.adapters import HTTPAdapter, Retry
 from openpyxl.styles import Font
@@ -28,6 +28,9 @@ D = 41  # DBMN op teambeheer
 CLUB_URL = "https://basvanderlit1-commits.github.io/dv-the-pirates/"
 PIRATES7_URL = "https://basvanderlit1-commits.github.io/pirates7/"  # eigen site van Pirates 7 (blijft bestaan)
 CLUB_TOPIC = "dv-the-pirates-dbmn-uitslagen"  # alle uitslagen van de club
+# kleuren waarmee teambeheer de plekken in de stand markeert (zelfde regels als de officiële stand)
+ZONES = {"label-color-green": "kampioen", "label-color-blue2": "promotie", "raster-column-orange": "nacompetitie",
+         "label-color-red": "degradatie"}
 HERE = Path(__file__).parent
 NOW = datetime.now(ZoneInfo("Europe/Amsterdam"))
 http = requests.Session()
@@ -241,7 +244,10 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
 
     # ---------- stand, klassementen, bijzondere resultaten van de poule ----------
     stand_soup = get(f"/web/stand?d={D}&s={S}&div={DIV}", full=True)
-    stand = next(rows(t) for t in stand_soup.find_all("table") if "Wed" in [txt(th) for th in t.find_all("th")])
+    stand_tab = next(t for t in stand_soup.find_all("table") if "Wed" in [txt(th) for th in t.find_all("th")])
+    stand = rows(stand_tab)
+    zones = {txt(tds[1]): next((ZONES[c] for c in tds[0].get("class") or [] if c in ZONES), "")
+             for tds in (tr.find_all("td") for tr in stand_tab.find_all("tr")) if len(tds) > 1}
 
     pk_single = rows(get(f"/web/scorelijst-pk/?d={D}&mt=1&s={S}&filter=P-{DIV}").find("table"))
     pk_koppel = rows(get(f"/web/scorelijst-pk/?d={D}&mt=2&s={S}&filter=P-{DIV}").find("table"))
@@ -334,7 +340,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
     return dict(
         team=TEAM, slug=slugify(TEAM), div=DIV, seizoen=S, bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), locatie=locatie,
         captain=role("Captain"), rc=role("Reserve captain"), bron=f"{B}/web/team?d={D}&t={TEAM_ID}&s={S}",
-        stand=[dict(pos=num(r[0]), team=r[1], wed=num(r[2]), w=num(r[3]), v=num(r[4]), pnt=num(r[5]), gem=num(r[6]))
+        stand=[dict(pos=num(r[0]), team=r[1], wed=num(r[2]), w=num(r[3]), v=num(r[4]), pnt=num(r[5]), gem=num(r[6]), zone=zones.get(r[1], ""))
                for r in stand[1:] if any(r)],
         matches=[dict(ronde=m["ronde"], datum=m["datum"], tegen=m["tegen"], tu=m["tu"], uitslag=m["uitslag"], vrij=m["vrij"],
                       wij=int(m["wijzij"].split(" - ")[0]) if m["score"] else None,
@@ -356,7 +362,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
               for b in bijz if b["team"] == TEAM],
         bijzrank=[dict(lijst=name, pos=num(r[0]), speler=r[1], waarde=num(r[4]))
                   for name, tab in bijz_lists.items() for r in ours_only(tab, 2)],
-        verloop=verloop, tegenstanders=tegenstanders, ntfy=f"{short(TEAM)}-dbmn-uitslagen", xlsx=xlsx,
+        verloop=verloop, tegenstanders=tegenstanders, ntfy=f"{short(TEAM)}-dbmn-uitslagen", xlsx=xlsx, ics=f"{short(TEAM)}.ics",
         club=CLUB_URL, clubtopic=CLUB_TOPIC, nav=nav,
     )
 
@@ -405,7 +411,42 @@ def summary(d, url):
                 gem=me.get("gem"), w=me.get("w"), v=me.get("v"), ntfy=d["ntfy"],
                 matches=[{k: m[k] for k in ("ronde", "datum", "tegen", "tu", "uitslag", "wij", "zij", "vrij", "locatie")}
                          for m in d["matches"]],
-                bijz=d["bijz"])
+                bijz=d["bijz"], zone=me.get("zone", ""), ics=d["ics"], locatie=d["locatie"], spelers=[s["naam"] for s in d["spelers"]],
+                games=[[g["ronde"], g["type"], g["wij"], g["uitslag"], g["lw"], g["lz"]] for g in d["games"]])
+
+
+def fold(line):
+    """iCalendar: regels van hooguit 75 bytes, vervolgregels beginnen met een spatie."""
+    b, out = line.encode(), []
+    while len(b) > (75 if not out else 74):
+        cut = 75 if not out else 74
+        while b[cut] & 0xC0 == 0x80:  # niet midden in een UTF-8-teken knippen
+            cut -= 1
+        out.append(b[:cut])
+        b = b[cut:]
+    return "\r\n ".join(x.decode() for x in out + [b])
+
+
+def ics(naam, teams):
+    """Agenda (iCalendar) met alle wedstrijden; teambeheer kent geen aanvangstijd, dus afspraken voor de hele dag."""
+    esc = lambda s: str(s).replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+    stamp = NOW.astimezone(ZoneInfo("UTC")).strftime("%Y%m%dT%H%M%SZ")
+    L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//D.V. The Pirates//dv-the-pirates//NL", "CALSCALE:GREGORIAN",
+         "METHOD:PUBLISH", f"X-WR-CALNAME:{esc(naam)}", "X-WR-TIMEZONE:Europe/Amsterdam",
+         "REFRESH-INTERVAL;VALUE=DURATION:PT6H", "X-PUBLISHED-TTL:PT6H"]
+    for d, url in teams:
+        for m in d["matches"]:
+            if m["vrij"]:
+                continue
+            dag = datetime.strptime(m["datum"], "%d-%m-%Y").date()
+            wat = "Beker" if m["ronde"].startswith("b") else f"Ronde {m['ronde']}"
+            titel = f"{d['team']} {m['wij']}-{m['zij']} {m['tegen']}" if m["uitslag"] else f"{d['team']} - {m['tegen']}"
+            L += ["BEGIN:VEVENT", f"UID:{slugify(d['team'])}-{m['ronde']}@dv-the-pirates", f"DTSTAMP:{stamp}",
+                  f"DTSTART;VALUE=DATE:{dag:%Y%m%d}", f"DTEND;VALUE=DATE:{dag + timedelta(days=1):%Y%m%d}",
+                  f"SUMMARY:{esc(titel + ' (' + m['tu'].lower() + ')')}", f"LOCATION:{esc(m['locatie'])}",
+                  f"DESCRIPTION:{esc(wat + ' · DBMN divisie ' + d['div'] + chr(10) + url)}", f"URL:{url}",
+                  "TRANSP:TRANSPARENT", "END:VEVENT"]
+    return "\r\n".join(fold(x) for x in L + ["END:VCALENDAR"]) + "\r\n"
 
 
 if __name__ == "__main__":
@@ -425,7 +466,7 @@ if __name__ == "__main__":
     oud = {t["naam"]: {m["ronde"] for m in t["matches"] if m["uitslag"]}
            for t in json.loads(prev.read_text(encoding="utf-8"))["teams"]} if prev.exists() else {}
 
-    club = []
+    club, teamdata = [], []
     for naam in chosen:
         team_id, s = teams[naam]
         out = site if args.solo else site / slugify(naam)
@@ -435,11 +476,15 @@ if __name__ == "__main__":
         url = PIRATES7_URL if args.solo else CLUB_URL + slugify(naam) + "/"
         if os.environ.get("MELDINGEN") == "aan" and naam in oud:  # nieuw team: eerst een vorige stand opbouwen
             notify(d, oud[naam], url)
+        (out / d["ics"]).write_bytes(ics(naam, [(d, url)]).encode())
         club.append(summary(d, url))
+        teamdata.append((d, url))
 
     if not args.solo:
         data = dict(bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), seizoen=teams[chosen[0]][1], teams=club,
-                    ntfy=CLUB_TOPIC, pirates7=PIRATES7_URL, bron=f"{B}/web/teams?d={D}")
+                    ntfy=CLUB_TOPIC, pirates7=PIRATES7_URL, bron=f"{B}/web/teams?d={D}", ics="dv-the-pirates.ics",
+                    zones={v: v for v in ZONES.values()})
+        (site / "dv-the-pirates.ics").write_bytes(ics("D.V. The Pirates", teamdata).encode())
         (site / "data.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         write_page(site, "club_template.html", data, "D.V. The Pirates", "The Pirates",
                    "Alle teams van D.V. The Pirates in de DBMN: stand, uitslagen en programma")

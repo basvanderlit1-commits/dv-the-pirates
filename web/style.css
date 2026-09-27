@@ -224,8 +224,9 @@ nav.bnav { display: none; }
   body[data-v="teams"] [data-view~="teams"],
   body[data-v="week"] [data-view~="week"],
   body[data-v="toppers"] [data-view~="toppers"],
-  body[data-v="meldingen"] [data-view~="meldingen"] { display: block; }
-  body[data-v="overzicht"] .kpis[data-view], body[data-v="teams"] .kpis[data-view] { display: grid; }
+  body[data-v="meldingen"] [data-view~="meldingen"],
+  body[data-v="club"] [data-view~="club"] { display: block; }
+  body[data-v="overzicht"] .kpis[data-view], body[data-v="club"] .kpis[data-view] { display: grid; }
   .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .kpi { padding: 12px 14px 10px; }
   .kpi .val { font-size: 36px; }
@@ -304,10 +305,88 @@ b.big { font: 700 22px/1 var(--display); color: var(--accent); }
 .topic .tlabel { min-width: 120px; }
 @media (max-width: 760px) { h1.club { font-size: 32px; white-space: nowrap; } }
 @media (max-width: 760px) {
-  .topic { flex-wrap: nowrap; } .topic .tlabel { display: none; }
+  #topics .topic, #clubtopic .topic { flex-wrap: nowrap; } #topics .topic .tlabel { display: none; }
+  #agendaTeams .topic .tlabel { width: 100%; }
   .topic code { font-size: 12.5px; padding: 7px 9px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .topic .btn { padding: 7px 10px; font-size: 13px; }
 }
 .tname { display: none; }
 @media (max-width: 760px) { .tname { display: block; margin: 10px 0 -4px; font: 600 14px var(--body); } }
 .late { color: var(--accent); font-weight: 600; }
+
+/* zones in de stand (kleuren van teambeheer) */
+.zone { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 6px; border-radius: 4px; }
+.zone.z-kampioen { background: var(--win-soft); color: var(--win); font-weight: 700; }
+.zone.z-promotie { background: #172A3F; color: #6CB4F0; font-weight: 700; }
+.zone.z-nacompetitie { background: #3A2C12; color: #F0B45A; font-weight: 700; }
+.zone.z-degradatie { background: var(--loss-soft); color: var(--loss); font-weight: 700; }
+.zlegend .zone { min-width: 12px; height: 12px; padding: 0; margin: 0 5px 0 10px; vertical-align: -1px; }
+.zlegend .zone:first-child { margin-left: 0; }
+.tzone { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.tzone .zone { min-width: 12px; height: 12px; padding: 0; }
+
+/* clubpagina: uitgelicht */
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.spot .big { font: 400 26px/1.1 var(--title); }
+.spot .big a, a.plink { color: var(--ink); text-decoration: none; }
+a.plink:hover, .spot .big a:hover { color: var(--accent); }
+.spot .sub { font-size: 13px; color: var(--muted); }
+.spotnum { margin: 8px 0 6px; font-size: 14px; color: var(--muted); }
+.spotnum b { font: 700 30px/1 var(--display); color: var(--accent); margin-right: 4px; }
+.badge { display: inline-block; font: 700 12px var(--body); letter-spacing: .04em; color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 3px 7px; margin: 0 6px 6px 0; }
+ol.runners { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+ol.runners li { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 5px; font-size: 14px; }
+ol.runners a { color: var(--ink); text-decoration: none; font-weight: 600; }
+.res + .res { margin-top: 14px; }
+.resrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.resscore { font: 700 38px/1 var(--display); }
+.resscore.W { color: var(--win); } .resscore.V { color: var(--loss); }
+.btn.share { padding: 6px 10px; font-size: 13px; }
+.wend { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+ul.mijl { margin: 0; padding-left: 18px; display: grid; gap: 7px; font-size: 14px; }
+ul.mijl b { color: var(--accent); }
+
+/* vormraster */
+table.raster td, table.raster th { padding: 6px 5px; }
+.cell { display: inline-block; min-width: 38px; padding: 3px 4px; border-radius: 4px; font: 700 14px var(--display); text-align: center; }
+.cell.W { background: var(--win-soft); color: var(--win); } .cell.V { background: var(--loss-soft); color: var(--loss); }
+table a { color: var(--ink); text-decoration: none; }
+
+/* divisiepiramide */
+.pyr { display: grid; gap: 8px; justify-items: center; }
+.plevel { width: var(--w); background: var(--sunken); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; text-align: center; }
+.plabel { display: block; font: 600 11px var(--body); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.pteams { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.pchip { display: grid; background: var(--raised); border: 1px solid var(--line); border-left: 3px solid var(--faint); border-radius: 6px; padding: 5px 9px; color: var(--ink); text-decoration: none; font-size: 13px; text-align: left; }
+.pchip span { color: var(--muted); font-size: 12px; }
+.pchip.z-kampioen { border-left-color: var(--win); } .pchip.z-promotie { border-left-color: #6CB4F0; }
+.pchip.z-nacompetitie { border-left-color: #F0B45A; } .pchip.z-degradatie { border-left-color: var(--loss); }
+
+/* thuis, zoeken */
+.hrow { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+.hrow .hloc { grid-column: 2 / -1; }
+.hrow .score { font-size: 18px; }
+input.zoek { width: 100%; font: 16px var(--body); color: var(--ink); background: var(--sunken); border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; }
+input.zoek:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.zoekres { display: grid; gap: 6px; margin-top: 10px; }
+.zhit { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; color: var(--ink); text-decoration: none; }
+.zhit:hover { border-color: var(--faint); }
+#rankTabs { flex-wrap: wrap; }
+
+@media (max-width: 1000px) { .three { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .three { display: contents; }
+  .plevel { width: 100%; }
+  .hrow { grid-template-columns: minmax(0, 1fr) auto; } .hrow .wopp { grid-column: 1 / -1; grid-row: 2; } .hrow .hloc { grid-column: 1 / -1; }
+  .wend .btn.share { display: none; }
+}
+.rteam { display: none; }
+@media (max-width: 760px) {
+  #rank th:nth-child(3), #rank td:nth-child(3) { display: none; }
+  .rteam { display: block; color: var(--muted); font-size: 12px; }
+  #rank .bar { min-width: 120px; }
+}
+@media (max-width: 760px) {
+  #stand td:nth-child(2) { white-space: normal; line-height: 1.25; overflow-wrap: anywhere; }
+  #stand th:nth-child(3), #stand td:nth-child(3) { display: none; } /* gespeeld: telefoon te smal */
+}

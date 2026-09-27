@@ -97,6 +97,8 @@ const when = s => { const n = Math.round((toDate(s) - today) / 864e5); return n 
 const T = D.teams.map(t => ({ ...t,
   played: t.matches.filter(m => m.uitslag),
   todo: t.matches.filter(m => !m.uitslag && !m.vrij) }));
+// volgende wedstrijd = de dichtstbijzijnde in de toekomst
+const volgende = t => t.todo.filter(m => toDate(m.datum) >= today).sort((a, b) => toDate(a.datum) - toDate(b.datum))[0];
 const all = T.flatMap(t => t.matches.filter(m => !m.vrij).map(m => ({ ...m, team: t.naam, url: t.url })));
 
 $("meta").textContent = `DBMN · seizoen ${D.seizoen} · ${T.length} teams`;
@@ -125,7 +127,7 @@ $("kpis").innerHTML = [
 
 // ---- teamkaarten ----
 $("teams").innerHTML = T.map(t => {
-  const last = t.played.at(-1), nx = t.todo[0];
+  const last = t.played.at(-1), nx = volgende(t);
   return `<a class="tcard" href="${esc(t.url)}">
     <div class="ttop"><b>${esc(t.naam).replace(/(\d+)$/, "<span>$1</span>")}</b><span class="tdiv">Divisie ${esc(t.div)}</span></div>
     <div class="tnums"><div><b>${t.pos ?? "–"}e</b><span>van ${t.teams}</span></div><div><b>${t.pnt ?? "–"}</b><span>punten</span></div><div><b>${t.gem != null ? nl(t.gem) : "–"}</b><span>gemiddeld</span></div></div>

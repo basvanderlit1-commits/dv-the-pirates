@@ -155,7 +155,9 @@ function when(m) {
   const n = Math.round((toDate(m.datum) - today) / 864e5);
   return n <= 0 ? "vandaag" : n === 1 ? "morgen" : `over ${n} dagen`;
 }
-const nx = todo[0];
+const today = new Date(); today.setHours(0, 0, 0, 0);
+// volgende wedstrijd = de dichtstbijzijnde in de toekomst (een wedstrijd zonder uitslag met een datum die al voorbij is telt niet)
+const nx = todo.filter(m => toDate(m.datum) >= today).sort((a, b) => toDate(a.datum) - toDate(b.datum))[0];
 $("next").innerHTML = nx
   ? `<div class="eyebrow">Volgende wedstrijd · <span class="when">${when(nx)}</span></div><b>${esc(nx.tegen)}</b><small>${esc(nx.datum)} · ${nx.tu.toLowerCase()} · ${beker(nx) ? "beker" : "ronde " + esc(nx.ronde)}${nx.locatie ? ` · <a href="${maps(nx.locatie)}" target="_blank" rel="noopener">route ↗</a>` : ""}</small>`
   : `<div class="eyebrow">Seizoen</div><b>Alle wedstrijden gespeeld</b>`;
@@ -228,7 +230,7 @@ function matchHtml(m) {
   if (m.vrij) return `<details class="match todo bye"><summary tabindex="-1">${rn}<span class="opp"><b>Vrije week</b><small>${beker(m) ? "beker" : ""}</small></span><span></span><span></span><span></span></summary></details>`;
   const sub = `<small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}</small>`;
   const route = m.locatie ? ` · <a href="${maps(m.locatie)}" target="_blank" rel="noopener">route ↗</a>` : "";
-  if (!m.uitslag) return `<details class="match todo"><summary tabindex="-1">${rn}<span class="opp"><b>${esc(m.tegen)}</b><small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}${route}</small></span><span class="score dim">–</span><span></span><span class="chev">›</span></summary></details>`;
+  if (!m.uitslag) return `<details class="match todo"><summary tabindex="-1">${rn}<span class="opp"><b>${esc(m.tegen)}</b><small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}${toDate(m.datum) < today ? " · <span class=\"late\">nog geen uitslag</span>" : route}</small></span><span class="score dim">–</span><span></span><span class="chev">›</span></summary></details>`;
   const gs = D.games.filter(g => g.ronde === m.ronde);
   const groups = TYPES.map(([t, label]) => {
     const list = gs.filter(g => g.type === t);

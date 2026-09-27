@@ -310,3 +310,4 @@ b.big { font: 700 22px/1 var(--display); color: var(--accent); }
 }
 .tname { display: none; }
 @media (max-width: 760px) { .tname { display: block; margin: 10px 0 -4px; font: 600 14px var(--body); } }
+.late { color: var(--accent); font-weight: 600; }

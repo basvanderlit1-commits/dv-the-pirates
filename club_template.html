@@ -464,10 +464,11 @@ function rank(kind) {
     note = "Legsaldo over singles, koppels en round robin (competitie en beker).";
   } else {
     const get = p => kind === "Totaal" ? [p.Single, p.Koppel, p.RR].reduce((a, x) => [a[0] + x[0], a[1] + x[1]], [0, 0]) : p[kind];
-    const maxN = Math.max(0, ...players.map(p => get(p)[0])), min = Math.max(1, Math.ceil(maxN / 2));
+    // meedoen vanaf meer dan 25% van het hoogste aantal partijen (12 -> minimaal 4)
+    const maxN = Math.max(0, ...players.map(p => get(p)[0])), min = Math.floor(maxN / 4) + 1;
     rows = players.filter(p => get(p)[0] >= min).sort((a, b) => get(b)[1] / get(b)[0] - get(a)[1] / get(a)[0] || get(b)[0] - get(a)[0]).slice(0, 15)
       .map(p => [p, bar(get(p)[1], get(p)[0])]);
-    note = `Op winstpercentage, met minimaal ${min} partijen (de helft van het meeste aantal: ${maxN}). Competitie en beker${kind === "RR" ? "; round robin per leg" : ""}.`;
+    note = `Op winstpercentage, met minimaal ${min} partijen (meer dan 25% van het meeste aantal: ${maxN}). Competitie en beker${kind === "RR" ? "; round robin per leg" : ""}.`;
   }
   $("rank").innerHTML = rows.length ? `<thead><tr><th class="n">#</th><th>Speler</th><th>Team</th><th>${kind === "Saldo" ? "Saldo" : "Gewonnen"}</th></tr></thead><tbody>` +
     rows.map(([p, v], i) => `<tr><td class="n">${i + 1}</td><td>${who(p.naam, p.team)}<small class="rteam">${esc(p.team)}</small></td><td class="dim">${esc(p.team)}</td><td>${v}</td></tr>`).join("") + "</tbody>"

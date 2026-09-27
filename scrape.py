@@ -137,6 +137,17 @@ def clean_loc(parts):
     return ", ".join(p.strip() for p in parts if p.strip() and not re.fullmatch(r"[\d\s\-+()]{6,}", p.strip()))
 
 
+def game_type(o):
+    """Soort partij uit de naam; die verschilt per divisie ("Singel 1 T*", "Koppel 2 - A*", "K 1* - K A", "RR 3 - C* 301")."""
+    if o.startswith("RR"):
+        return "RR"
+    if o.startswith(("Single", "Singel")):
+        return "Single"
+    if o.startswith("Koppel") or re.match(r"K \d", o):
+        return "Koppel"
+    return "Team"
+
+
 def to_date(s):
     try:
         return datetime.strptime(s, "%d-%m-%Y").date()
@@ -194,6 +205,8 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
         for item in f.select(".ui.list .item"):
             bijz.append(dict(ronde=m["ronde"], datum=m["datum"], speler=txt(item.select_one(".header")),
                              prestatie=txt(item.select_one(".content")).replace(txt(item.select_one(".header")), "", 1).strip()))
+    if onbekend := {g["onderdeel"] for g in games if game_type(g["onderdeel"]) == "Team"}:
+        print(f"LET OP ({TEAM}): onderdelen niet herkend als single/koppel/RR, tellen niet mee per speler:", onbekend)
     ours = {s["naam"] for s in spelers}
     for b in bijz:
         b["team"] = TEAM if b["speler"] in ours else "tegenstander"
@@ -201,8 +214,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
     # ---------- per speler: statistiek uit wedstrijdformulieren + spelerpagina ----------
     agg = defaultdict(lambda: defaultdict(int))
     for g in games:
-        o = g["onderdeel"]
-        kind = "s" if o.startswith(("Single", "Singel")) else "k" if o.startswith("Koppel") else "rr" if o.startswith("RR") else None
+        kind = {"Single": "s", "Koppel": "k", "RR": "rr"}.get(game_type(g["onderdeel"]))
         if not kind:
             continue
         for p in g["wij"].split(", "):
@@ -264,8 +276,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
     ours_only = lambda tab, col: [r for r in tab[1:] if len(r) > col and r[col] == TEAM]
     pk_count = lambda tab: sum(1 for r in tab[1:] if len(r) > 2)  # aantal spelers in het klassement
     won = lambda r: round(num(r[3]) * num(r[6]) / 100)  # gewonnen partijen = gespeeld x winst%
-    kind = lambda o: "RR" if o.startswith("RR") else "Single" if o.startswith(("Single", "Singel")) else \
-        "Koppel" if o.startswith("Koppel") else "Team"
+    kind = game_type
     out.mkdir(parents=True, exist_ok=True)
     xlsx = f"{short(TEAM)}-resultaten.xlsx"
 

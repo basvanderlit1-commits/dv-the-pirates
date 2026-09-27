@@ -189,7 +189,8 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
         for tr in f.find("table").find("tbody").find_all("tr"):
             td = tr.find_all("td")
             sc = txt(td[-1]) if td else ""
-            if len(td) < 4 or not re.fullmatch(r"\d+-\d+", sc):  # Totaal / niet gespeeld
+            # Totaal ("7 - 2") / niet gespeeld overslaan; "Team 1001/3" (beker) heeft geen spelerskolommen, dus 3 cellen
+            if len(td) < 3 or not re.fullmatch(r"\d+-\d+", sc):
                 continue
             hp = [txt(a) for a in td[1].find_all("a")]
             up = [txt(a) for a in td[2].find_all("a")]
@@ -205,7 +206,16 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
         for item in f.select(".ui.list .item"):
             bijz.append(dict(ronde=m["ronde"], datum=m["datum"], speler=txt(item.select_one(".header")),
                              prestatie=txt(item.select_one(".content")).replace(txt(item.select_one(".header")), "", 1).strip()))
-    if onbekend := {g["onderdeel"] for g in games if game_type(g["onderdeel"]) == "Team"}:
+    for m in matches:  # controle: uitslag = som van de partijen, waarbij de round robin samen één punt is
+        if m["uitslag"]:
+            gs = [g for g in games if g["ronde"] == m["ronde"]]
+            rr = [g for g in gs if game_type(g["onderdeel"]) == "RR"]
+            rw, rv = sum(g["legs_wij"] for g in rr), sum(g["legs_zij"] for g in rr)
+            som = (sum(g["uitslag"] == "W" for g in gs if g not in rr) + (rw > rv), sum(g["uitslag"] == "V" for g in gs if g not in rr) + (rv > rw))
+            h, u = map(int, m["score"].split("-"))
+            if som != ((h, u) if m["thuis"] == TEAM else (u, h)):
+                print(f"LET OP ({TEAM}) ronde {m['ronde']}: uitslag {m['score']} (thuis-uit), partijen tellen op tot {som[0]}-{som[1]} (wij-zij)")
+    if onbekend :={g["onderdeel"] for g in games if game_type(g["onderdeel"]) == "Team" and not g["onderdeel"].startswith("Team")}:
         print(f"LET OP ({TEAM}): onderdelen niet herkend als single/koppel/RR, tellen niet mee per speler:", onbekend)
     ours = {s["naam"] for s in spelers}
     for b in bijz:

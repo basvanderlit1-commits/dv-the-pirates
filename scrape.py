@@ -17,7 +17,7 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 from openpyxl import Workbook
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 from requests.adapters import HTTPAdapter, Retry
 from openpyxl.styles import Font
@@ -28,6 +28,7 @@ D = 41  # DBMN op teambeheer
 CLUB_URL = "https://basvanderlit1-commits.github.io/dv-the-pirates/"
 PIRATES7_URL = "https://basvanderlit1-commits.github.io/pirates7/"  # eigen site van Pirates 7 (blijft bestaan)
 CLUB_TOPIC = "dv-the-pirates-dbmn-uitslagen"  # alle uitslagen van de club
+AANVANG, EINDE = "200000", "230000"  # wedstrijden beginnen om 20:00; eindtijd is een schatting (agenda)
 # kleuren waarmee teambeheer de plekken in de stand markeert (zelfde regels als de officiële stand)
 ZONES = {"label-color-green": "kampioen", "label-color-blue2": "promotie", "raster-column-orange": "nacompetitie",
          "label-color-red": "degradatie"}
@@ -428,12 +429,18 @@ def fold(line):
 
 
 def ics(naam, teams):
-    """Agenda (iCalendar) met alle wedstrijden; teambeheer kent geen aanvangstijd, dus afspraken voor de hele dag."""
+    """Agenda (iCalendar) met alle wedstrijden; aanvang 20:00 (vast bij de DBMN, niet op teambeheer), einde geschat."""
     esc = lambda s: str(s).replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
     stamp = NOW.astimezone(ZoneInfo("UTC")).strftime("%Y%m%dT%H%M%SZ")
     L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//D.V. The Pirates//dv-the-pirates//NL", "CALSCALE:GREGORIAN",
          "METHOD:PUBLISH", f"X-WR-CALNAME:{esc(naam)}", "X-WR-TIMEZONE:Europe/Amsterdam",
-         "REFRESH-INTERVAL;VALUE=DURATION:PT6H", "X-PUBLISHED-TTL:PT6H"]
+         "REFRESH-INTERVAL;VALUE=DURATION:PT6H", "X-PUBLISHED-TTL:PT6H",
+         # tijdzone meesturen, zodat 20:00 in zomer- en wintertijd klopt
+         "BEGIN:VTIMEZONE", "TZID:Europe/Amsterdam",
+         "BEGIN:DAYLIGHT", "TZOFFSETFROM:+0100", "TZOFFSETTO:+0200", "TZNAME:CEST", "DTSTART:19700329T020000",
+         "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU", "END:DAYLIGHT",
+         "BEGIN:STANDARD", "TZOFFSETFROM:+0200", "TZOFFSETTO:+0100", "TZNAME:CET", "DTSTART:19701025T030000",
+         "RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU", "END:STANDARD", "END:VTIMEZONE"]
     for d, url in teams:
         for m in d["matches"]:
             if m["vrij"]:
@@ -442,10 +449,10 @@ def ics(naam, teams):
             wat = "Beker" if m["ronde"].startswith("b") else f"Ronde {m['ronde']}"
             titel = f"{d['team']} {m['wij']}-{m['zij']} {m['tegen']}" if m["uitslag"] else f"{d['team']} - {m['tegen']}"
             L += ["BEGIN:VEVENT", f"UID:{slugify(d['team'])}-{m['ronde']}@dv-the-pirates", f"DTSTAMP:{stamp}",
-                  f"DTSTART;VALUE=DATE:{dag:%Y%m%d}", f"DTEND;VALUE=DATE:{dag + timedelta(days=1):%Y%m%d}",
+                  f"DTSTART;TZID=Europe/Amsterdam:{dag:%Y%m%d}T{AANVANG}", f"DTEND;TZID=Europe/Amsterdam:{dag:%Y%m%d}T{EINDE}",
                   f"SUMMARY:{esc(titel + ' (' + m['tu'].lower() + ')')}", f"LOCATION:{esc(m['locatie'])}",
                   f"DESCRIPTION:{esc(wat + ' · DBMN divisie ' + d['div'] + chr(10) + url)}", f"URL:{url}",
-                  "TRANSP:TRANSPARENT", "END:VEVENT"]
+                  "END:VEVENT"]
     return "\r\n".join(fold(x) for x in L + ["END:VCALENDAR"]) + "\r\n"
 
 

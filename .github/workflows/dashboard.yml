@@ -1,4 +1,4 @@
-name: Dashboard bijwerken
+name: Clubsite bijwerken
 
 on:
   schedule:
@@ -13,6 +13,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: write           # keep-alive: workflow opnieuw inschakelen
 
 concurrency:
   group: pages
@@ -21,6 +22,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,13 +30,17 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - name: Vorige stand ophalen (voor meldingen bij nieuwe uitslagen)
-        run: curl -sf https://basvanderlit1-commits.github.io/pirates7/data.json -o prev.json || true
-      - run: python scrape_pirates7.py
+        run: curl -sf https://basvanderlit1-commits.github.io/dv-the-pirates/data.json -o prev.json || true
+      - run: python scrape.py
         env:
           MELDINGEN: aan
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+      - name: Keep-alive (GitHub schakelt geplande workflows uit na 60 dagen zonder commits)
+        run: gh workflow enable dashboard.yml --repo "${{ github.repository }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   deploy:
     needs: build

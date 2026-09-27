@@ -1,5 +1,6 @@
 // Offline: altijd eerst het netwerk (nieuwste stand), zonder bereik de laatst geladen versie.
-const CACHE = "pirates7";
+// Elke map (club, elk team) registreert zijn eigen sw.js; de scope is dan die map.
+const CACHE = "pirates:" + self.registration.scope;
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", e => {

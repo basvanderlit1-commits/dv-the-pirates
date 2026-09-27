@@ -8,280 +8,22 @@
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Pirates 7">
-<title>Pirates 7 Dashboard</title>
+<meta name="apple-mobile-web-app-title" content="__SHORT__">
+<title>__NAME__</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Lilita+One&family=Source+Sans+3:wght@400;600;700&display=swap">
-<style>
-/* Huisstijl D.V. The Pirates: antraciet (#222, gelijk aan logo/banner) met Pirates-rood (#BD202C / #7C1520).
-   --brand = vlakken, --accent = rood dat leesbaar is als tekst op donker. Winst groen, verlies rood. */
-:root {
-  color-scheme: dark;
-  --ground: #1B1B1B; --head: #222222; --surface: #262626; --raised: #2E2E2E; --sunken: #1F1F1F; --line: #383838;
-  --ink: #F3F3F3; --muted: #ADADAD; --faint: #737373;
-  --brand: #BD202C; --brand-dark: #7C1520;
-  --accent: #E5404D; --accent-soft: #3A1D20;
-  --win: #4CC38A; --win-soft: #16301F; --loss: #F07A7A; --loss-soft: #3A1D20;
-  --title: "Lilita One", "Arial Rounded MT Bold", "Arial Black", sans-serif;
-  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
-  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
-  --nav-h: 62px;
-}
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.45 var(--body); font-variant-numeric: tabular-nums; -webkit-tap-highlight-color: transparent; }
-.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; }
-main.wrap { padding-block: 22px 48px; display: flex; flex-direction: column; gap: 20px; }
-a { color: var(--accent); }
-button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* kopbalk */
-header.top { background: var(--head); border-bottom: 3px solid var(--brand); padding-top: env(safe-area-inset-top, 0px); }
-.banner { display: block; width: 100%; max-width: 1046px; height: auto; margin: 0 auto; }
-.brandrow { display: flex; align-items: center; gap: 14px; }
-.mark { display: none; width: 64px; height: auto; flex: none; }
-header.top .wrap { padding-block: 4px 20px; display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: flex-end; justify-content: space-between; }
-.eyebrow { font: 600 12px/1.2 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-h1 { font: 400 clamp(40px, 6vw, 58px)/1 var(--title); letter-spacing: .01em; margin: 4px 0 0; }
-h1 span { color: var(--accent); }
-.next { border-left: 3px solid var(--accent); padding-left: 14px; }
-.next { border-left-color: var(--brand); }
-.next b { display: block; font: 400 22px/1.15 var(--title); letter-spacing: .01em; margin-top: 4px; }
-.next small { color: var(--muted); font-size: 13.5px; }
-.next .when { color: var(--accent); font-weight: 700; }
-
-/* kerncijfers */
-.kpis { border-top: 3px solid var(--brand) !important; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-.kpi { background: var(--surface); padding: 14px 16px 12px; }
-.kpi .lbl { font-size: 11.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-.kpi .val { font: 700 44px/1 var(--display); margin-top: 6px; }
-.kpi .sub { font-size: 13px; color: var(--muted); }
-.kpi.lead .val { color: var(--accent); }
-
-/* panelen */
-.grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; align-items: start; }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; min-width: 0; }
-h2 { font: 400 23px/1.1 var(--title); letter-spacing: .01em; margin: 0; }
-.ph { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-.ph small { color: var(--muted); font-size: 13px; }
-.scroll { overflow-x: auto; }
-
-/* tabellen */
-table { width: 100%; border-collapse: collapse; }
-th { font: 600 11px/1.2 var(--body); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 0 10px 8px; border-bottom: 1px solid var(--faint); white-space: nowrap; }
-td { padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-th.n, td.n { text-align: right; }
-th.c, td.c { text-align: center; }
-tr.ours td { background: var(--accent-soft); font-weight: 700; color: var(--ink); }
-tr.ours td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
-.dim { color: var(--faint); }
-
-/* W/V */
-.pill { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 7px; border-radius: 4px; font: 700 13px/1 var(--body); }
-.pill.W { background: var(--win-soft); color: var(--win); }
-.pill.V { background: var(--loss-soft); color: var(--loss); }
-.form { display: flex; gap: 6px; }
-.form .pill { width: 28px; height: 28px; border-radius: 50%; }
-
-/* grafiek */
-.chart { min-height: 200px; }
-.chart svg { display: block; width: 100%; height: auto; }
-.chart text { fill: var(--muted); font: 12px var(--body); }
-.chart .val { fill: var(--ink); font: 600 15px var(--display); }
-.legend { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin-top: 8px; flex-wrap: wrap; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
-
-/* spelers */
-.bar { display: flex; align-items: center; gap: 8px; min-width: 140px; }
-.bar .track { flex: 1; height: 6px; background: var(--sunken); border-radius: 3px; overflow: hidden; min-width: 50px; }
-.bar .fill { height: 100%; background: var(--win); border-radius: 3px; }
-.bar .num { font-size: 13px; color: var(--muted); min-width: 66px; text-align: right; }
-.bar .num b { color: var(--ink); }
-.role { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-left: 6px; }
-.plus { color: var(--win); } .min { color: var(--loss); }
-.pcards { display: none; }
-.pcard { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; }
-.pcard .ptop { display: flex; align-items: baseline; gap: 6px; }
-.pcard .ptop b { font-size: 16px; }
-.pcard .saldo { margin-left: auto; font: 700 22px/1 var(--display); }
-.prow { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.pcard .pfoot { font-size: 13px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
-.pcard .pfoot b { color: var(--ink); }
-
-/* programma */
-.tabs { display: flex; gap: 4px; background: var(--sunken); padding: 3px; border-radius: 8px; }
-.tabs button { font: 600 13px var(--body); color: var(--muted); background: none; border: 0; padding: 7px 12px; border-radius: 6px; cursor: pointer; }
-.tabs button[aria-selected="true"] { background: var(--raised); color: var(--ink); }
-details.match { border-bottom: 1px solid var(--line); }
-details.match summary { list-style: none; display: grid; grid-template-columns: 40px minmax(0,1fr) 64px 34px 16px; gap: 12px; align-items: center; padding: 11px 4px; cursor: pointer; }
-details.match summary::-webkit-details-marker { display: none; }
-@media (hover: hover) { details.match:not(.todo) summary:hover { background: var(--sunken); } }
-.chev { color: var(--faint); transition: transform .15s; font-size: 18px; }
-details[open] .chev { transform: rotate(90deg); }
-.rnd { font: 600 18px var(--display); color: var(--muted); text-align: center; }
-.opp { min-width: 0; }
-.opp b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opp small { color: var(--muted); font-size: 13px; }
-.score { font: 700 24px/1 var(--display); text-align: center; }
-.todo summary { cursor: default; } .todo .opp b { font-weight: 400; } .todo .chev { visibility: hidden; }
-.bye .opp b { color: var(--faint); font-style: italic; }
-.detail { padding: 2px 4px 16px 56px; }
-.detail .meta { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
-.detail .meta a { font-weight: 600; }
-.games { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 14px 24px; }
-.games h4 { font: 600 12px var(--body); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
-.game { display: grid; grid-template-columns: minmax(0,1fr) 44px minmax(0,1fr) 30px; grid-template-areas: "us legs them pill"; gap: 4px 8px; align-items: center; font-size: 13.5px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
-.game .us { grid-area: us; font-weight: 600; } .game .them { grid-area: them; color: var(--muted); }
-.game .legs { grid-area: legs; text-align: center; font-weight: 700; } .game .pill { grid-area: pill; }
-
-/* bijzonder */
-.chips { display: flex; flex-wrap: wrap; gap: 10px; }
-.chip { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--raised); }
-.chip b { display: block; font: 700 30px/1 var(--display); color: var(--accent); }
-.chip span { font-size: 13px; color: var(--muted); }
-.empty { color: var(--muted); margin: 0; }
-
-/* persoonlijk klassement */
-#pk td { vertical-align: top; }
-#pk .rk b { font: 700 22px/1 var(--display); }
-#pk .rk .of { color: var(--muted); font-size: 13px; }
-#pk .rk.top b { color: var(--accent); }
-#pk small { color: var(--muted); font-size: 12.5px; }
-.note { color: var(--muted); font-size: 12.5px; margin: 12px 0 0; }
-
-footer { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; }
-footer a { color: var(--muted); }
-footer .dl { color: var(--accent); font-weight: 600; }
-
-/* kolommen, knoppen */
-.col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-.btn { display: inline-flex; align-items: center; gap: 6px; background: var(--brand); color: #fff; text-decoration: none; font: 700 14px var(--body); padding: 9px 14px; border-radius: 8px; border: 0; cursor: pointer; }
-.btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); }
-.sub-h, .pv h3 { font: 600 11.5px var(--body); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
-.lead { margin: 0 0 8px; color: var(--ink); }
-.chart.small { min-height: 160px; }
-
-/* voorbeschouwing */
-.pv { display: grid; grid-template-columns: 1.3fr 1fr 1.2fr; gap: 18px 24px; }
-.pv .big { font: 400 26px/1.1 var(--title); }
-.pv .num { font: 700 32px/1 var(--display); }
-.pv .sub { font-size: 13px; color: var(--muted); }
-.pv .loc { font-size: 13px; color: var(--muted); margin: 6px 0 10px; }
-.pv ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
-.pv li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 5px; }
-.pv .blk + .blk { margin-top: 12px; }
-
-/* records */
-.recs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 10px; }
-.rec { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-.rec .l { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-.rec .v { font: 700 30px/1.1 var(--display); color: var(--accent); }
-.rec .d { font-size: 13px; color: var(--muted); }
-
-/* koppels */
-#koppels td:first-child { white-space: normal; }
-
-/* spelersprofiel */
-.clickable { cursor: pointer; }
-@media (hover: hover) { #spelers tbody tr.clickable:hover td { background: var(--sunken); } .pcard.clickable:hover { border-color: var(--faint); } }
-dialog.profiel { width: min(780px, calc(100% - 32px)); max-height: min(90vh, 960px); padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); }
-dialog.profiel::backdrop { background: rgba(0, 0, 0, .65); }
-.dlg-head { position: sticky; top: 0; z-index: 1; background: var(--head); border-bottom: 3px solid var(--brand); padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
-.dlg-head h2 { flex: 1; }
-.dlg-close { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 8px; width: 38px; height: 38px; font-size: 22px; line-height: 1; cursor: pointer; }
-.dlg-body { padding: 16px; display: grid; gap: 18px; }
-.pstats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.pstats div { background: var(--raised); padding: 10px 12px; }
-.pstats b { display: block; font: 700 26px/1.1 var(--display); }
-.pstats span { font-size: 12px; color: var(--muted); }
-.pstats b span { font-size: inherit; }
-.avond + .avond { margin-top: 12px; }
-.avond h4 { margin: 0 0 2px; font: 600 13px var(--body); color: var(--ink); }
-
-/* meldingen */
-.steps { margin: 0 0 6px; padding-left: 20px; display: grid; gap: 4px; color: var(--muted); }
-.steps b, .steps a { color: var(--ink); }
-.topic { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
-.topic code { background: var(--sunken); border: 1px solid var(--line); padding: 8px 12px; border-radius: 8px; font-size: 15px; color: var(--ink); }
-
-/* navigatie: alleen op telefoon */
-nav.bnav { display: none; }
-
-@media (max-width: 1000px) {
-  .grid, .two { grid-template-columns: 1fr; }
-  .kpis { grid-template-columns: repeat(3, minmax(0,1fr)); }
-}
-
-/* ---------- telefoon: één scherm per tabblad met navigatie onderin ---------- */
-@media (max-width: 760px) {
-  body { padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px)); }
-  header.top .wrap { padding-block: 16px 14px; gap: 12px; }
-  h1 { font-size: 40px; }
-  .banner { display: none; }
-  .mark { display: block; }
-  header.top .wrap { padding-block: 14px 14px; }
-  .next { width: 100%; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: 10px; padding: 10px 14px; }
-  .next b { font-size: 21px; }
-  main.wrap { padding-block: 14px 24px; gap: 14px; }
-  .grid, .two, .col { display: contents; }
-  .pv { grid-template-columns: 1fr; }
-  .pstats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  dialog.profiel { width: 100%; max-width: none; height: 100%; max-height: none; margin: 0; border: 0; border-radius: 0; }
-  .dlg-head { padding-top: calc(14px + env(safe-area-inset-top, 0px)); }
-  .dlg-body { padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
-  [data-view] { display: none; }
-  body[data-v="overzicht"] [data-view~="overzicht"],
-  body[data-v="stand"] [data-view~="stand"],
-  body[data-v="spelers"] [data-view~="spelers"],
-  body[data-v="programma"] [data-view~="programma"] { display: block; }
-  body[data-v="overzicht"] .kpis[data-view] { display: grid; }
-  .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .kpi { padding: 12px 14px 10px; }
-  .kpi .val { font-size: 36px; }
-  .panel { padding: 14px; border-radius: 12px; }
-  h2 { font-size: 21px; }
-  td { padding: 10px 6px; } th { padding: 0 6px 8px; }
-  #stand td, #stand th { font-size: 14px; }
-  .spelers-table { display: none; }
-  #pk thead { display: none; }
-  #pk tr { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
-  #pk td { border: 0; padding: 0; white-space: normal; }
-  #pk td:first-child { grid-column: 1 / -1; }
-  #pk td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); margin-bottom: 2px; }
-  .pcards { display: grid; gap: 10px; }
-  .tabs { width: 100%; } .tabs button { flex: 1; }
-  details.match summary { grid-template-columns: 30px minmax(0,1fr) 54px 30px 12px; gap: 8px; padding: 12px 2px; }
-  .detail { padding: 0 2px 14px; }
-  .game { grid-template-columns: minmax(0,1fr) auto; grid-template-areas: "us pill" "them legs"; }
-  .game .legs { text-align: right; }
-  footer { flex-direction: column; }
-
-  nav.bnav {
-    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-    background: rgba(26, 26, 26, .95); border-top: 2px solid var(--brand); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-    border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  nav.bnav button {
-    flex: 1; height: var(--nav-h); background: none; border: 0; color: var(--faint); cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-    font: 600 11px var(--body); letter-spacing: .04em;
-  }
-  nav.bnav svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  nav.bnav button[aria-current="page"] { color: var(--accent); }
-}
-@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body data-v="overzicht">
 
 <header class="top">
   <img class="banner" src="banner.png" alt="D.V. The Pirates, est. 1985" width="1046" height="197">
   <div class="wrap">
+  <nav class="clubbar" aria-label="Club"><a id="clubLink" class="back">‹ Alle teams van D.V. The Pirates</a><select id="teamkies" aria-label="Kies een team"></select></nav>
   <div class="brandrow">
     <img class="mark" src="mark.png" alt="" width="264" height="205">
     <div>
@@ -366,6 +108,7 @@ nav.bnav { display: none; }
       </ol>
       <div class="topic"><code id="topic"></code><button class="btn ghost" id="copyTopic" type="button">Kopiëren</button></div>
       <p class="note">Liever zonder app? Open <a id="topicWeb" target="_blank" rel="noopener"></a> in je browser en zet daar meldingen aan.</p>
+      <p class="note">Alle uitslagen van de hele club? Abonneer je op <b id="clubTopic"></b> (<a id="clubLink2">uitleg op de clubsite</a>).</p>
     </section>
   </div>
 
@@ -396,6 +139,13 @@ const comp = played.filter(m => !beker(m));
 const me = D.stand.find(s => s.team === D.team) || {};
 const maps = loc => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`;
 const vormPills = v => (v || []).map(r => `<span class="pill ${r}">${r}</span>`).join("");
+
+// ---- club: link terug en teamkiezer ----
+$("clubLink").href = D.club;
+$("clubLink2").href = D.club + "#meldingen";
+$("clubTopic").textContent = D.clubtopic;
+$("teamkies").innerHTML = D.nav.map(t => `<option value="${esc(t.url)}"${t.naam === D.team ? " selected" : ""}>${esc(t.naam)}</option>`).join("");
+$("teamkies").addEventListener("change", e => { location.href = e.target.value; });
 
 // ---- kop ----
 $("meta").textContent = `D.V. The Pirates · Divisie ${D.div} · ${D.seizoen}`;
@@ -491,11 +241,11 @@ function showProgramma(f) {
   const list = f === "gespeeld" ? [...played].reverse() : f === "todo" ? todo : D.matches;
   $("programma").innerHTML = list.map(matchHtml).join("") || `<p class="empty">Geen wedstrijden.</p>`;
   document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.f === f));
-  try { localStorage.setItem("p7tab", f); } catch (e) {}
+  try { localStorage.setItem("tab:" + D.team, f); } catch (e) {}
 }
 document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => showProgramma(b.dataset.f)));
 let startTab = "gespeeld";
-try { startTab = localStorage.getItem("p7tab") || startTab; } catch (e) {}
+try { startTab = localStorage.getItem("tab:" + D.team) || startTab; } catch (e) {}
 showProgramma(startTab);
 
 // ---- bijzondere resultaten ----
@@ -518,7 +268,7 @@ const pos = (label, n) => {
 $("pk").innerHTML = `<thead><tr><th>Speler</th><th>Singles</th><th>Koppels</th></tr></thead><tbody>` +
   names.map(n => `<tr><td><b>${esc(n)}</b></td><td data-label="Singles">${pos("Singles", n)}</td><td data-label="Koppels">${pos("Koppels", n)}</td></tr>`).join("") + "</tbody>";
 
-$("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span><a class="dl" href="pirates7-resultaten.xlsx" download>Data downloaden (Excel)</a><span>Thuis: ${esc(D.locatie)}</span><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
+$("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span><a class="dl" href="${esc(D.xlsx)}" download>Data downloaden (Excel)</a><span>Thuis: ${esc(D.locatie)}</span><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
 
 // ---- voorbeschouwing volgende tegenstander (met route) ----
 (function preview() {

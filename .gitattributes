@@ -1,0 +1,4 @@
+# Altijd LF-regeleindes, ook op Windows (voorkomt CRLF-problemen in scripts en templates)
+* text=auto eol=lf
+*.png binary
+*.xlsx binary

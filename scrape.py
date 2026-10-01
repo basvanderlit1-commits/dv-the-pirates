@@ -12,6 +12,7 @@ import json
 import os
 import re
 import shutil
+import traceback
 from collections import defaultdict
 from pathlib import Path
 import requests
@@ -405,6 +406,38 @@ def notify(d, oud, click):
                     print("Melding mislukt:", topic, e)
 
 
+def keep_previous(out, naam, url):
+    """Faalt een team, dan de laatste goede versie van de live site overnemen (pagina, Excel, agenda)."""
+    out.mkdir(parents=True, exist_ok=True)
+    namen = ["index.html", f"{short(naam)}-resultaten.xlsx", f"{short(naam)}.ics"]
+    try:  # eerst alles ophalen, pas schrijven als alles lukt (geen half overgenomen pagina)
+        inhoud = {f: http.get(url + f, timeout=30) for f in namen}
+        for r in inhoud.values():
+            r.raise_for_status()
+    except requests.RequestException as e:
+        print("Vorige versie niet op te halen:", naam, e)
+        for f in namen:  # half geschreven uitvoer van de mislukte build weghalen
+            (out / f).unlink(missing_ok=True)
+        return False
+    for f, r in inhoud.items():
+        (out / f).write_bytes(r.content)
+    for f in (HERE / "web").iterdir():  # afbeeldingen, stijl en scripts waar de pagina naar verwijst
+        if not (out / f.name).exists():
+            shutil.copy(f, out / f.name)
+    return True
+
+
+def alarm(titel, tekst):
+    """Seintje aan de beheerder (privé ntfy-topic uit NTFY_BEHEER); zonder topic alleen in de log."""
+    print("ALARM:", titel, "-", tekst)
+    if topic := os.environ.get("NTFY_BEHEER"):
+        try:
+            http.post("https://ntfy.sh/", json=dict(topic=topic, title=titel, message=tekst, priority=4, tags=["warning"],
+                                                  click=os.environ.get("RUN_URL", CLUB_URL)), timeout=30).raise_for_status()
+        except requests.RequestException as e:
+            print("Alarm versturen mislukt:", e)
+
+
 def summary(d, url):
     """Wat de clubpagina van een team nodig heeft (ook de vorige stand voor meldingen)."""
     me = next((s for s in d["stand"] if s["team"] == d["team"]), {})
@@ -470,22 +503,41 @@ if __name__ == "__main__":
     shutil.rmtree(site, ignore_errors=True)  # teams die niet meer bestaan niet laten staan
 
     prev = Path("prev.json")  # vorige clubstand (GitHub Actions haalt de live data.json op)
-    oud = {t["naam"]: {m["ronde"] for m in t["matches"] if m["uitslag"]}
-           for t in json.loads(prev.read_text(encoding="utf-8"))["teams"]} if prev.exists() else {}
+    try:
+        vorige = {t["naam"]: t for t in json.loads(prev.read_text(encoding="utf-8"))["teams"]} if prev.exists() else {}
+    except (ValueError, KeyError, TypeError) as e:  # kapotte of oude vorige stand: dan alleen geen meldingen
+        print("LET OP: prev.json onleesbaar, geen meldingen deze keer:", e)
+        vorige = {}
+    oud = {n: {m["ronde"] for m in t["matches"] if m["uitslag"]} for n, t in vorige.items()}
 
-    club, teamdata = [], []
+    club, teamdata, fouten = [], [], []
     for naam in chosen:
         team_id, s = teams[naam]
         out = site if args.solo else site / slugify(naam)
-        d = build_team(naam, team_id, s, out, nav)
-        write_page(out, "dashboard_template.html", d, f"{naam} Dashboard", naam,
-                   f"Stand, uitslagen en statistieken van {naam} (DBMN Divisie {d['div']})")
         url = PIRATES7_URL if args.solo else CLUB_URL + slugify(naam) + "/"
+        try:
+            d = build_team(naam, team_id, s, out, nav)
+            write_page(out, "dashboard_template.html", d, f"{naam} Dashboard", naam,
+                       f"Stand, uitslagen en statistieken van {naam} (DBMN Divisie {d['div']})")
+            (out / d["ics"]).write_bytes(ics(naam, [(d, url)]).encode())
+            samenvatting = summary(d, url)
+        except Exception as e:  # één afwijkende teampagina mag de rest van de site niet tegenhouden
+            traceback.print_exc()
+            bewaard = keep_previous(out, naam, url)
+            fouten.append(f"{naam}: {type(e).__name__}: {e}"[:300] + ("" if bewaard else " (geen vorige versie)"))
+            if naam in vorige and not args.solo:  # clubpagina en clubagenda: de vorige stand van dit team
+                club.append(vorige[naam])
+                teamdata.append((dict(team=naam, div=vorige[naam]["div"], matches=vorige[naam]["matches"]), url))
+            continue
         if os.environ.get("MELDINGEN") == "aan" and naam in oud:  # nieuw team: eerst een vorige stand opbouwen
             notify(d, oud[naam], url)
-        (out / d["ics"]).write_bytes(ics(naam, [(d, url)]).encode())
-        club.append(summary(d, url))
+        club.append(samenvatting)
         teamdata.append((d, url))
+    if fouten:
+        alarm(f"{len(fouten)} van {len(chosen)} teams niet bijgewerkt",
+              "Deze teams tonen de vorige stand:\n" + "\n".join(fouten))
+        if len(fouten) == len(chosen):
+            raise SystemExit("Geen enkel team bijgewerkt - teambeheer onbereikbaar of veranderd?")
 
     if not args.solo:
         data = dict(bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), seizoen=teams[chosen[0]][1], teams=club,

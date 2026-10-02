@@ -160,8 +160,15 @@
       <h3 class="sub-h" style="margin-top:14px">Eén team</h3>
       <div id="topics"></div>
       <p class="note">Liever zonder app? Tik op de naam van een onderwerp om het in je browser te openen en zet daar meldingen aan.</p>
+      <h3 class="sub-h" style="margin-top:16px">Laatst verstuurd</h3>
+      <ul class="mijl" id="mlog"></ul>
     </section>
   </div>
+
+  <section class="panel" id="archiefPanel" data-view="club">
+    <div class="ph"><h2>Archief</h2><small>eindstanden van vorige seizoenen</small></div>
+    <div id="archief"></div>
+  </section>
 
   <footer id="foot"></footer>
 </main>
@@ -194,6 +201,8 @@ const DAG = ["zo", "ma", "di", "wo", "do", "vr", "za"];
 const dag = s => `${DAG[toDate(s).getDay()]} ${s.slice(0, 5)}`;
 const fmt = d => d.toLocaleDateString("nl-NL", { day: "numeric", month: "short" });
 const today = new Date(); today.setHours(0, 0, 0, 0);
+// in het weekend (geen speelavonden meer) al de komende week tonen
+const weekStart = [0, 6].includes(today.getDay()) ? addDays(mon(today), 7) : mon(today);
 const when = s => { const n = Math.round((toDate(s) - today) / 864e5); return n < 0 ? "gespeeld" : n === 0 ? "vandaag" : n === 1 ? "morgen" : `over ${n} dagen`; };
 const bar = (w, n) => n
   ? `<div class="bar"><div class="track"><div class="fill" style="width:${pct(w, n)}%"></div></div><span class="num"><b>${w}</b>/${n} · ${pct(w, n)}%</span></div>`
@@ -236,7 +245,7 @@ $("meta").textContent = `DBMN · seizoen ${D.seizoen} · ${T.length} teams`;
 const upcoming = all.filter(m => !m.uitslag && toDate(m.datum) >= today).sort(byDate);
 const nd = upcoming[0]?.datum, onNd = upcoming.filter(m => m.datum === nd);
 $("next").innerHTML = nd
-  ? `<div class="eyebrow">Volgende speelavond · <span class="when">${when(nd)}</span></div><b>${dag(nd)}</b><small>${onNd.map(m => esc(m.team)).join(" · ")}</small>`
+  ? `<div class="eyebrow">Volgende speelavond · <span class="when">${when(nd)}</span></div><b>${dag(nd)} · ${esc(D.aanvang)}</b><small>${onNd.map(m => esc(m.team)).join(" · ")}</small>`
   : `<div class="eyebrow">Seizoen</div><b>Alle wedstrijden gespeeld</b>`;
 
 // ---- kerncijfers ----
@@ -305,7 +314,8 @@ $("teams").innerHTML = T.map(t => {
 
 // ---- deze week (of de eerstvolgende speelweek) ----
 (function week() {
-  let start = mon(today), list = all.filter(m => inWeek(m.datum, start));
+  let start = weekStart, list = all.filter(m => inWeek(m.datum, start));
+  if (start > today) $("weekTitle").textContent = "Komende week";
   if (!list.length && upcoming.length) { start = mon(toDate(upcoming[0].datum)); list = all.filter(m => inWeek(m.datum, start)); $("weekTitle").textContent = "Volgende speelweek"; }
   $("weekSub").textContent = `${fmt(start)} – ${fmt(addDays(start, 6))}`;
   // een onderling duel van twee Pirates-teams maar één keer tonen
@@ -325,7 +335,7 @@ $("teams").innerHTML = T.map(t => {
 
 // ---- thuis in het clubhuis: deze en volgende week ----
 (function thuis() {
-  const start = mon(today), end = addDays(start, 14);
+  const start = weekStart, end = addDays(start, 14);
   const list = all.filter(m => m.tu === "Thuis" && toDate(m.datum) >= start && toDate(m.datum) < end).sort((a, b) => byDate(a, b) || a.team.localeCompare(b.team));
   $("thuisSub").textContent = `${fmt(start)} – ${fmt(addDays(end, -1))}`;
   let cur = "";
@@ -514,11 +524,21 @@ $("agendaTeams").innerHTML = T.map(t => agendaRow(t.naam, t.url + t.ics)).join("
 const topic = (label, t) => `<div class="topic">${label ? `<b class="tlabel">${esc(label)}</b>` : ""}<code><a href="https://ntfy.sh/${esc(t)}" target="_blank" rel="noopener">${esc(t)}</a></code><button class="btn ghost" type="button" data-copy="${esc(t)}">Kopiëren</button></div>`;
 $("clubtopic").innerHTML = topic("", D.ntfy);
 $("topics").innerHTML = T.map(t => `<h4 class="tname">${esc(t.naam)}</h4>` + topic(t.naam, t.ntfy)).join("");
+$("mlog").innerHTML = (D.meldingen || []).slice(0, 10).map(m => `<li><span class="dim">${esc(m.tijd)}</span> · ${esc(m.titel)}</li>`).join("")
+  || `<li class="empty">Nog geen meldingen verstuurd sinds dit logboek bestaat.</li>`;
 bindCopy();
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-share]");
   if (b) shareResult(SHARE[b.dataset.share], b);
 });
+
+// ---- archief ----
+if ((D.archief || []).length) {
+  $("archief").innerHTML = D.archief.map(a => `<h3 class="sub-h" style="margin-top:12px">Seizoen ${esc(a.seizoen)}</h3><div class="scroll"><table>
+    <thead><tr><th>Team</th><th>Div</th><th class="n">Eind</th><th class="n">Pnt</th><th class="n">W–V</th><th class="n">180</th><th class="n">Finish</th></tr></thead><tbody>` +
+    a.teams.map(t => `<tr><td><b>${esc(t.naam)}</b></td><td>${esc(t.div)}</td><td class="n">${t.pos ?? "–"}e <span class="dim">/ ${t.teams ?? "–"}</span></td><td class="n">${t.pnt ?? "–"}</td><td class="n">${t.w ?? "–"}–${t.v ?? "–"}</td><td class="n">${t.n180 || "–"}</td><td class="n">${t.finish ?? "–"}</td></tr>`).join("") +
+    "</tbody></table></div>").join("");
+} else $("archiefPanel").remove();
 
 $("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span><a class="dl" href="${esc(D.pirates7)}">Eigen site van Pirates 7 ↗</a><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
 

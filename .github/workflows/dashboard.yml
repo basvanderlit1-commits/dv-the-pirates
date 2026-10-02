@@ -10,14 +10,14 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write          # archief van het vorige seizoen bewaren (alleen bij de seizoenswissel)
   pages: write
   id-token: write
   actions: write           # keep-alive: workflow opnieuw inschakelen
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false  # niet halverwege afbreken (tussen uitrol en meldingen); een nieuwe run wacht
 
 env:
   NTFY_BEHEER: dv-the-pirates-beheer-bf94f1f85a  # privé-topic: storingen, alleen voor de beheerder
@@ -27,20 +27,41 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      meldingen: ${{ steps.wachtrij.outputs.meldingen }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
+      - name: Controles (faalt er één, dan wordt er niets uitgerold)
+        run: python test_scrape.py
       - name: Vorige stand ophalen (voor meldingen bij nieuwe uitslagen)
         run: curl -sf https://basvanderlit1-commits.github.io/dv-the-pirates/data.json -o prev.json || true
       - run: python scrape.py
         env:
-          MELDINGEN: aan
+          MELDINGEN: aan     # meldingen gaan in de wachtrij; versturen gebeurt pas na de uitrol
+      - id: wachtrij
+        run: echo "meldingen=$([ -s meldingen.jsonl ] && echo ja || echo nee)" >> "$GITHUB_OUTPUT"
+      - if: steps.wachtrij.outputs.meldingen == 'ja'
+        uses: actions/upload-artifact@v4
+        with:
+          name: meldingen
+          path: meldingen.jsonl
+          retention-days: 2
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+      - name: Archief vorig seizoen bewaren (alleen bij de seizoenswissel)
+        run: |
+          if [ -n "$(git status --porcelain archief)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add archief && git commit -m "Archief vorig seizoen"
+            # tegelijk een push van iemand anders? dan eerst bijwerken; lukt het niet, dan probeert de volgende run het opnieuw
+            git pull --rebase -q && git push || echo "Archief nu niet bewaard; volgende run probeert opnieuw"
+          fi
       - name: Keep-alive (GitHub schakelt geplande workflows uit na 60 dagen zonder commits)
         run: gh workflow enable dashboard.yml --repo "${{ github.repository }}"
         env:
@@ -56,8 +77,29 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v4
 
-  alarm:  # build of uitrol mislukt: seintje aan de beheerder (de site toont dan nog de vorige stand)
+  meldingen:  # pas na een geslaagde uitrol: zo nooit dubbele meldingen als een run onderweg mislukt
     needs: [build, deploy]
+    if: needs.build.outputs.meldingen == 'ja'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: meldingen
+      - name: Uitslagen versturen (ntfy)
+        run: |
+          mislukt=0
+          while IFS= read -r bericht; do
+            if curl -fsS --retry 3 -H "Content-Type: application/json" -d "$bericht" https://ntfy.sh/ > /dev/null; then
+              echo "verstuurd: $bericht" | cut -c1-120
+            else
+              echo "MISLUKT: $bericht" | cut -c1-120; mislukt=$((mislukt + 1))
+            fi
+          done < meldingen.jsonl
+          # mislukt er één, dan wordt de job rood en gaat het alarm af; opnieuw versturen kan 2 dagen via "Re-run jobs"
+          [ "$mislukt" -eq 0 ]
+
+  alarm:  # build, uitrol of meldingen mislukt: seintje aan de beheerder
+    needs: [build, deploy, meldingen]
     if: failure()
     runs-on: ubuntu-latest
     steps:

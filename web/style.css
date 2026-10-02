@@ -3,7 +3,7 @@
 :root {
   color-scheme: dark;
   --ground: #1B1B1B; --head: #222222; --surface: #262626; --raised: #2E2E2E; --sunken: #1F1F1F; --line: #383838;
-  --ink: #F3F3F3; --muted: #ADADAD; --faint: #737373;
+  --ink: #F3F3F3; --muted: #ADADAD; --faint: #999999; /* min. 4,5:1 contrast op alle achtergronden */
   --brand: #BD202C; --brand-dark: #7C1520;
   --accent: #E5404D; --accent-soft: #3A1D20;
   --win: #4CC38A; --win-soft: #16301F; --loss: #F07A7A; --loss-soft: #3A1D20;
@@ -405,3 +405,4 @@ input.zoek:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   #tfin th:nth-child(4), #tfin td:nth-child(4) { display: none; }
   table.raster th:first-child, table.raster td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
 }
+@media (max-width: 760px) { #archief th:nth-child(7), #archief td:nth-child(7) { display: none; } } /* archief: finish alleen op de computer */

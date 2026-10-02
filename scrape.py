@@ -68,14 +68,13 @@ def rows(table):
 
 
 def num(v):
-    v = str(v).replace("%", "").strip()
-    try:
-        return int(v)
-    except ValueError:
-        try:
-            return float(v)
-        except ValueError:
-            return v
+    """Getal als het er echt een is ("12", "6.3", "75%"); namen als "Nan" of "Infinity" blijven tekst."""
+    s = str(v).replace("%", "").strip()
+    if re.fullmatch(r"-?\d+", s):
+        return int(s)
+    if re.fullmatch(r"-?\d+\.\d+", s):
+        return float(s)
+    return s
 
 
 def header_table(soup, first_col):
@@ -167,6 +166,9 @@ def sheet(wb, title, header, data):
         c.font = Font(bold=True)
     for r in data:
         ws.append([num(v) if isinstance(v, str) else v for v in r])
+        for c in ws[ws.max_row]:
+            if c.data_type == "f":  # namen komen van buiten: tekst die met "=" begint is geen formule
+                c.data_type = "s"
     for row in ws.iter_rows(min_row=2):
         for c in row:
             if isinstance(c.value, date):
@@ -211,6 +213,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
         for item in f.select(".ui.list .item"):
             bijz.append(dict(ronde=m["ronde"], datum=m["datum"], speler=txt(item.select_one(".header")),
                              prestatie=txt(item.select_one(".content")).replace(txt(item.select_one(".header")), "", 1).strip()))
+    controle = []  # afwijkingen: de site wordt wel bijgewerkt, de beheerder krijgt een seintje
     for m in matches:  # controle: uitslag = som van de partijen, waarbij de round robin samen één punt is
         if m["uitslag"]:
             gs = [g for g in games if g["ronde"] == m["ronde"]]
@@ -219,9 +222,11 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
             som = (sum(g["uitslag"] == "W" for g in gs if g not in rr) + (rw > rv), sum(g["uitslag"] == "V" for g in gs if g not in rr) + (rv > rw))
             h, u = map(int, m["score"].split("-"))
             if som != ((h, u) if m["thuis"] == TEAM else (u, h)):
-                print(f"LET OP ({TEAM}) ronde {m['ronde']}: uitslag {m['score']} (thuis-uit), partijen tellen op tot {som[0]}-{som[1]} (wij-zij)")
+                controle.append(f"ronde {m['ronde']}: uitslag {m['score']} (thuis-uit), partijen tellen op tot {som[0]}-{som[1]} (wij-zij)")
     if onbekend :={g["onderdeel"] for g in games if game_type(g["onderdeel"]) == "Team" and not g["onderdeel"].startswith("Team")}:
-        print(f"LET OP ({TEAM}): onderdelen niet herkend als single/koppel/RR, tellen niet mee per speler:", onbekend)
+        controle.append("onderdelen niet herkend als single/koppel/RR: " + ", ".join(sorted(onbekend)))
+    for c in controle:
+        print(f"LET OP ({TEAM}):", c)
     ours = {s["naam"] for s in spelers}
     for b in bijz:
         b["team"] = TEAM if b["speler"] in ours else "tegenstander"
@@ -248,6 +253,8 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
     stand_soup = get(f"/web/stand?d={D}&s={S}&div={DIV}", full=True)
     stand_tab = next(t for t in stand_soup.find_all("table") if "Wed" in [txt(th) for th in t.find_all("th")])
     stand = rows(stand_tab)
+    if not any(len(r) > 1 and r[1] == TEAM for r in stand[1:]):  # harde controle: zonder eigen stand geen dashboard
+        raise ValueError(f"{TEAM} staat niet in de stand van divisie {DIV}")
     zones = {txt(tds[1]): next((ZONES[c] for c in tds[0].get("class") or [] if c in ZONES), "")
              for tds in (tr.find_all("td") for tr in stand_tab.find_all("tr")) if len(tds) > 1}
 
@@ -365,7 +372,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
         bijzrank=[dict(lijst=name, pos=num(r[0]), speler=r[1], waarde=num(r[4]))
                   for name, tab in bijz_lists.items() for r in ours_only(tab, 2)],
         verloop=verloop, tegenstanders=tegenstanders, ntfy=f"{short(TEAM)}-dbmn-uitslagen", xlsx=xlsx, ics=f"{short(TEAM)}.ics",
-        club=CLUB_URL, clubtopic=CLUB_TOPIC, nav=nav,
+        club=CLUB_URL, clubtopic=CLUB_TOPIC, nav=nav, aanvang=f"{AANVANG[:2]}:{AANVANG[2:4]}", controle=controle,
     )
 
 
@@ -386,9 +393,11 @@ def write_page(out, template, data, name, short_name, desc):
     (out / "index.html").write_text(html, encoding="utf-8")
 
 
-def notify(d, oud, click):
-    """Melding bij elke nieuwe uitslag, naar het topic van het team en naar het clubtopic (ntfy.sh)."""
+def nieuwe_uitslagen(d, oud, click):
+    """ntfy-berichten voor elke nieuwe uitslag (teamtopic + clubtopic). Versturen gebeurt pas na een geslaagde
+    uitrol (workflow-job "meldingen"), zodat een afgebroken run nooit dubbele meldingen geeft."""
     me = next((s for s in d["stand"] if s["team"] == d["team"]), {})
+    berichten = []
     for m in d["matches"]:
         if m["uitslag"] and m["ronde"] not in oud:
             score = f"{m['wij']}-{m['zij']}"
@@ -396,14 +405,9 @@ def notify(d, oud, click):
                      "G": f"{d['team']} speelt {score} gelijk tegen {m['tegen']}"}[m["uitslag"]]
             wat = "Beker" if m["ronde"].startswith("b") else "Ronde " + m["ronde"]
             tekst = f"{wat} · {m['datum']} · {m['tu'].lower()}\nStand: {me.get('pos')}e in {d['div']} met {me.get('pnt')} punten"
-            for topic in (d["ntfy"], CLUB_TOPIC):
-                try:  # een storing bij ntfy mag de update van het dashboard nooit tegenhouden
-                    http.post("https://ntfy.sh/", json=dict(topic=topic, title=titel, message=tekst, click=click,
-                                                          tags=["dart", "trophy"] if m["uitslag"] == "W" else ["dart"]),
-                              timeout=30).raise_for_status()
-                    print("Melding verstuurd:", topic, titel)
-                except requests.RequestException as e:
-                    print("Melding mislukt:", topic, e)
+            berichten += [dict(topic=topic, title=titel, message=tekst, click=click,
+                               tags=["dart", "trophy"] if m["uitslag"] == "W" else ["dart"]) for topic in (d["ntfy"], CLUB_TOPIC)]
+    return berichten
 
 
 def keep_previous(out, naam, url):
@@ -445,8 +449,18 @@ def summary(d, url):
                 gem=me.get("gem"), w=me.get("w"), v=me.get("v"), ntfy=d["ntfy"],
                 matches=[{k: m[k] for k in ("ronde", "datum", "tegen", "tu", "uitslag", "wij", "zij", "vrij", "locatie")}
                          for m in d["matches"]],
-                bijz=d["bijz"], zone=me.get("zone", ""), ics=d["ics"], locatie=d["locatie"], spelers=[s["naam"] for s in d["spelers"]],
+                bijz=d["bijz"], zone=me.get("zone", ""), ics=d["ics"], seizoen=d["seizoen"], controle=d["controle"], locatie=d["locatie"], spelers=[s["naam"] for s in d["spelers"]],
                 games=[[g["ronde"], g["type"], g["wij"], g["uitslag"], g["lw"], g["lz"]] for g in d["games"]])
+
+
+def archief_van(club):
+    """Eindstand van een seizoen in het kort (voor het archief op de clubpagina)."""
+    def finish(t):
+        f = [num(b["prestatie"].split()[0]) for b in t.get("bijz", []) if "finish" in b["prestatie"]]
+        return max((x for x in f if isinstance(x, int)), default=None)
+    return dict(seizoen=club["seizoen"], teams=[
+        dict(naam=t["naam"], div=t["div"], pos=t.get("pos"), teams=t.get("teams"), pnt=t.get("pnt"), w=t.get("w"), v=t.get("v"),
+             n180=sum("180" in b["prestatie"] for b in t.get("bijz", [])), finish=finish(t)) for t in club["teams"]])
 
 
 def fold(line):
@@ -504,13 +518,15 @@ if __name__ == "__main__":
 
     prev = Path("prev.json")  # vorige clubstand (GitHub Actions haalt de live data.json op)
     try:
-        vorige = {t["naam"]: t for t in json.loads(prev.read_text(encoding="utf-8"))["teams"]} if prev.exists() else {}
-    except (ValueError, KeyError, TypeError) as e:  # kapotte of oude vorige stand: dan alleen geen meldingen
+        prevdata = json.loads(prev.read_text(encoding="utf-8")) if prev.exists() else {}
+        vorige = {t["naam"]: t for t in prevdata.get("teams", [])}
+        oud = {n: {m["ronde"] for m in t["matches"] if m["uitslag"]} for n, t in vorige.items()}
+    except (ValueError, KeyError, TypeError, AttributeError) as e:  # kapotte of oude vorige stand: dan geen meldingen
         print("LET OP: prev.json onleesbaar, geen meldingen deze keer:", e)
-        vorige = {}
-    oud = {n: {m["ronde"] for m in t["matches"] if m["uitslag"]} for n, t in vorige.items()}
+        prevdata, vorige, oud = {}, {}, {}
+    seizoen = teams[chosen[0]][1]
 
-    club, teamdata, fouten = [], [], []
+    club, teamdata, fouten, berichten = [], [], [], []
     for naam in chosen:
         team_id, s = teams[naam]
         out = site if args.solo else site / slugify(naam)
@@ -529,10 +545,16 @@ if __name__ == "__main__":
                 club.append(vorige[naam])
                 teamdata.append((dict(team=naam, div=vorige[naam]["div"], matches=vorige[naam]["matches"]), url))
             continue
-        if os.environ.get("MELDINGEN") == "aan" and naam in oud:  # nieuw team: eerst een vorige stand opbouwen
-            notify(d, oud[naam], url)
+        # nieuw team of nieuw seizoen (rondenummers beginnen opnieuw): eerst een vorige stand opbouwen, niets melden
+        if naam in oud and vorige[naam].get("seizoen", s) == s:
+            berichten += nieuwe_uitslagen(d, oud[naam], url)
         club.append(samenvatting)
         teamdata.append((d, url))
+    # controles: alleen een seintje bij afwijkingen die er de vorige keer nog niet waren
+    nieuw = [f"{t['naam']}: {c}" for t in club for c in t.get("controle", [])
+             if c not in vorige.get(t["naam"], {}).get("controle", [])]
+    if nieuw:
+        alarm("Controle: afwijkende gegevens", "\n".join(nieuw)[:1500])
     if fouten:
         alarm(f"{len(fouten)} van {len(chosen)} teams niet bijgewerkt",
               "Deze teams tonen de vorige stand:\n" + "\n".join(fouten))
@@ -540,9 +562,26 @@ if __name__ == "__main__":
             raise SystemExit("Geen enkel team bijgewerkt - teambeheer onbereikbaar of veranderd?")
 
     if not args.solo:
-        data = dict(bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), seizoen=teams[chosen[0]][1], teams=club,
+        # meldingen: in de wachtrij voor de workflow (verstuurd na de uitrol) en in het logboek op de clubpagina
+        log = prevdata.get("meldingen", []) if isinstance(prevdata.get("meldingen"), list) else []
+        if os.environ.get("MELDINGEN") == "aan":
+            # ASCII met \u-escapes: zo komt "·" ook heel aan als curl de regel als argument meekrijgt
+            (HERE / "meldingen.jsonl").write_bytes("".join(json.dumps(b) + "\n" for b in berichten).encode("ascii"))
+            log = [dict(tijd=NOW.strftime("%d-%m-%Y %H:%M"), titel=b["title"]) for b in berichten
+                   if b["topic"] == CLUB_TOPIC] + log
+            print(len(berichten), "meldingen in de wachtrij")
+        # archief: bij de seizoenswissel de laatste stand van het vorige seizoen bewaren (de workflow commit archief/)
+        archief = HERE / "archief"
+        if prevdata.get("seizoen") not in (None, seizoen) and prevdata.get("teams"):
+            archief.mkdir(exist_ok=True)
+            f = archief / f"{prevdata['seizoen']}.json"
+            if not f.exists():
+                f.write_text(json.dumps(archief_van(prevdata), ensure_ascii=False, indent=1), encoding="utf-8")
+                print("Archief bewaard:", f.name)
+        data = dict(bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), seizoen=seizoen, teams=club,
                     ntfy=CLUB_TOPIC, pirates7=PIRATES7_URL, bron=f"{B}/web/teams?d={D}", ics="dv-the-pirates.ics",
-                    zones={v: v for v in ZONES.values()})
+                    zones={v: v for v in ZONES.values()}, aanvang=f"{AANVANG[:2]}:{AANVANG[2:4]}", meldingen=log[:30],
+                    archief=[json.loads(a.read_text(encoding="utf-8")) for a in sorted(archief.glob("*.json"), reverse=True)])
         (site / "dv-the-pirates.ics").write_bytes(ics("D.V. The Pirates", teamdata).encode())
         (site / "data.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         write_page(site, "club_template.html", data, "D.V. The Pirates", "The Pirates",

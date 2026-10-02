@@ -163,7 +163,7 @@ const today = new Date(); today.setHours(0, 0, 0, 0);
 // volgende wedstrijd = de dichtstbijzijnde in de toekomst (een wedstrijd zonder uitslag met een datum die al voorbij is telt niet)
 const nx = todo.filter(m => toDate(m.datum) >= today).sort((a, b) => toDate(a.datum) - toDate(b.datum))[0];
 $("next").innerHTML = nx
-  ? `<div class="eyebrow">Volgende wedstrijd · <span class="when">${when(nx)}</span></div><b>${esc(nx.tegen)}</b><small>${esc(nx.datum)} · ${nx.tu.toLowerCase()} · ${beker(nx) ? "beker" : "ronde " + esc(nx.ronde)}${nx.locatie ? ` · <a href="${maps(nx.locatie)}" target="_blank" rel="noopener">route ↗</a>` : ""}</small>`
+  ? `<div class="eyebrow">Volgende wedstrijd · <span class="when">${when(nx)}</span></div><b>${esc(nx.tegen)}</b><small>${esc(nx.datum)} · ${esc(D.aanvang)} · ${nx.tu.toLowerCase()} · ${beker(nx) ? "beker" : "ronde " + esc(nx.ronde)}${nx.locatie ? ` · <a href="${maps(nx.locatie)}" target="_blank" rel="noopener">route ↗</a>` : ""}</small>`
   : `<div class="eyebrow">Seizoen</div><b>Alle wedstrijden gespeeld</b>`;
 
 // ---- kerncijfers ----
@@ -284,7 +284,7 @@ $("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerk
   const o = D.tegenstanders[nx.tegen] || {};
   const st = D.stand.find(s => s.team === nx.tegen);
   const heen = [...played].reverse().find(m => m.tegen === nx.tegen);
-  el.innerHTML = `<div class="ph"><h2>Volgende tegenstander</h2><small>${esc(nx.datum)} · ${when(nx)}</small></div>
+  el.innerHTML = `<div class="ph"><h2>Volgende tegenstander</h2><small>${esc(nx.datum)} · ${esc(D.aanvang)} · ${when(nx)}</small></div>
   <div class="pv">
     <div>
       <div class="big">${esc(nx.tegen)}</div>

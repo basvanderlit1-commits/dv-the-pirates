@@ -1,4 +1,5 @@
-requests
-beautifulsoup4
-openpyxl
-tzdata
+# vaste versies: een nieuwe versie kan de build niet ongemerkt breken (bijwerken: versie ophogen, lokaal testen)
+requests==2.34.2
+beautifulsoup4==4.15.0
+openpyxl==3.1.5
+tzdata==2026.4

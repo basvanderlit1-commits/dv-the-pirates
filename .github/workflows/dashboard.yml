@@ -2,12 +2,14 @@ name: Clubsite bijwerken
 
 on:
   schedule:
-    - cron: "0 5 * * *"   # elke ochtend (07:00 NL zomertijd)
-    - cron: "30 22 * * *" # elke avond na de speelavond
-    - cron: "30 23 * * *" # en nog een keer later op de avond
-  workflow_dispatch:       # handmatig: tab Actions > Run workflow
+    - cron: "0 5 * * *"               # elke ochtend volledig bijwerken (07:00 NL zomertijd)
+    # speelavonden: elke 10 minuten een snelle check (UTC; dekt 22:00-01:00 NL in zomer- en wintertijd).
+    # Alleen als er op teambeheer iets veranderd is, wordt de site gebouwd en gaan er meldingen uit.
+    - cron: "3-53/10 20-23 * * *"
+    - cron: "3,13,23 0 * * *"
+  workflow_dispatch:                  # handmatig: tab Actions > Run workflow (bouwt altijd)
   push:
-    branches: [main]
+    branches: [main]                  # bouwt altijd
 
 permissions:
   contents: write          # archief van het vorige seizoen bewaren (alleen bij de seizoenswissel)
@@ -28,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
+      bouwen: ${{ steps.check.outputs.bouwen }}
       meldingen: ${{ steps.wachtrij.outputs.meldingen }}
     steps:
       - uses: actions/checkout@v4
@@ -35,14 +38,26 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
+      - name: Vorige stand ophalen (voor de check en voor meldingen bij nieuwe uitslagen)
+        # ?nc= omzeilt de cache van GitHub Pages (10 min), anders kan een uitslag twee keer gemeld worden
+        run: curl -sf "https://basvanderlit1-commits.github.io/dv-the-pirates/data.json?nc=$(date +%s)" -o prev.json || true
+      - name: Iets veranderd op teambeheer? (avondrondes; 's ochtends, bij push en handmatig altijd bouwen)
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.event.schedule }}" != "0 5 * * *" ]; then
+            python scrape.py --check
+          else
+            echo "bouwen=ja" >> "$GITHUB_OUTPUT"
+          fi
       - name: Controles (faalt er één, dan wordt er niets uitgerold)
+        if: steps.check.outputs.bouwen == 'ja'
         run: python test_scrape.py
-      - name: Vorige stand ophalen (voor meldingen bij nieuwe uitslagen)
-        run: curl -sf https://basvanderlit1-commits.github.io/dv-the-pirates/data.json -o prev.json || true
-      - run: python scrape.py
+      - if: steps.check.outputs.bouwen == 'ja'
+        run: python scrape.py
         env:
           MELDINGEN: aan     # meldingen gaan in de wachtrij; versturen gebeurt pas na de uitrol
       - id: wachtrij
+        if: steps.check.outputs.bouwen == 'ja'
         run: echo "meldingen=$([ -s meldingen.jsonl ] && echo ja || echo nee)" >> "$GITHUB_OUTPUT"
       - if: steps.wachtrij.outputs.meldingen == 'ja'
         uses: actions/upload-artifact@v4
@@ -50,10 +65,12 @@ jobs:
           name: meldingen
           path: meldingen.jsonl
           retention-days: 2
-      - uses: actions/upload-pages-artifact@v3
+      - if: steps.check.outputs.bouwen == 'ja'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
       - name: Archief vorig seizoen bewaren (alleen bij de seizoenswissel)
+        if: steps.check.outputs.bouwen == 'ja'
         run: |
           if [ -n "$(git status --porcelain archief)" ]; then
             git config user.name "github-actions[bot]"
@@ -69,6 +86,7 @@ jobs:
 
   deploy:
     needs: build
+    if: needs.build.outputs.bouwen == 'ja'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

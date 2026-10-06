@@ -3,13 +3,15 @@
 Stand, uitslagen en statistieken van alle Pirates-teams in de DBMN, automatisch van teambeheer.nl.
 
 - Clubsite: https://basvanderlit1-commits.github.io/dv-the-pirates/ (clubpagina + per team `/<team>/`, bv. `/pirates-7/`)
-- Pirates 7 houdt ook zijn eigen adres: https://basvanderlit1-commits.github.io/pirates7/ (repo `pirates7` bouwt met deze code)
+- Pirates 7 houdt ook zijn eigen adres: https://basvanderlit1-commits.github.io/pirates7/ (repo `pirates7` neemt de Pirates 7-pagina van de clubsite over)
 
 ## Hoe het werkt
 `scrape.py` zoekt op teambeheer alle teams met "Pirates" in de naam (seizoen, divisie en team-id gaan vanzelf) en bouwt in `site/`:
 een clubpagina, per team een dashboard, Excel (alleen ruwe data) en agenda (iCal, 20:00–23:00).
-GitHub Actions (`.github/workflows/dashboard.yml`) draait dit elke dag om 05:00, 22:30 en 23:30 UTC, bij elke push en via
-*Actions → Clubsite bijwerken → Run workflow*. Volgorde: controles (`test_scrape.py`) → bouwen → uitrollen → meldingen.
+GitHub Actions (`.github/workflows/dashboard.yml`) bouwt elke ochtend (05:00 UTC), bij elke push en via
+*Actions → Clubsite bijwerken → Run workflow*. Op speelavonden (22:00–01:00 NL) kijkt hij elke 10 minuten met een snelle
+check (`scrape.py --check`, ~17 pagina's) of er op teambeheer iets veranderd is; alleen dan wordt er gebouwd.
+Volgorde: check → controles (`test_scrape.py`) → bouwen → uitrollen → meldingen.
 
 | Bestand | Wat |
 |---|---|

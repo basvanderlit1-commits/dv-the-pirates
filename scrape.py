@@ -453,6 +453,29 @@ def summary(d, url):
                 games=[[g["ronde"], g["type"], g["wij"], g["uitslag"], g["lw"], g["lz"]] for g in d["games"]])
 
 
+def check_hash(teams):
+    """Vingerafdruk van wat er op teambeheer toe doet: per team het programma met uitslagen en de stand van de poule.
+    Zelfde pagina's als de build, dus in een volledige build kost dit geen extra verzoeken (cache)."""
+    h = hashlib.sha256()
+    for naam, (team_id, s) in teams.items():
+        page = get(f"/web/team?d={D}&t={team_id}&s={s}")
+        ms, _, _ = parse_team(page, naam)
+        h.update(json.dumps([(m["ronde"], m["datum"], m["score"]) for m in ms]).encode())
+        div = re.search(r"Divisie (\w+)", txt(page.find("a", href=re.compile(r"/web/stand")))).group(1)
+        stand = next(t for t in get(f"/web/stand?d={D}&s={s}&div={div}", full=True).find_all("table")
+                     if "Wed" in [txt(th) for th in t.find_all("th")])
+        h.update(txt(stand).encode())
+    return h.hexdigest()[:16]
+
+
+def vingerafdruk(teams):
+    try:
+        return check_hash(teams)
+    except Exception as e:  # dan bouwt de volgende avondronde gewoon opnieuw
+        print("Vingerafdruk niet te maken:", e)
+        return None
+
+
 def archief_van(club):
     """Eindstand van een seizoen in het kort (voor het archief op de clubpagina)."""
     def finish(t):
@@ -507,14 +530,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--team", action="append", help="alleen dit team (mag vaker); standaard alle Pirates-teams")
     ap.add_argument("--solo", action="store_true", help="één team in de root van site/, zonder clubpagina")
+    ap.add_argument("--check", action="store_true", help="alleen kijken of er iets veranderd is (bouwen=ja/nee)")
     args = ap.parse_args()
-    teams = club_teams()
-    chosen = args.team or list(teams)
-    if missing := [t for t in chosen if t not in teams]:
-        raise SystemExit(f"Team {missing} niet gevonden op {B}/web/teams?d={D} - klopt de naam nog?")
-    nav = [dict(naam=n, url=CLUB_URL + slugify(n) + "/") for n in teams]
-    site = HERE / "site"
-    shutil.rmtree(site, ignore_errors=True)  # teams die niet meer bestaan niet laten staan
 
     prev = Path("prev.json")  # vorige clubstand (GitHub Actions haalt de live data.json op)
     try:
@@ -524,6 +541,26 @@ if __name__ == "__main__":
     except (ValueError, KeyError, TypeError, AttributeError) as e:  # kapotte of oude vorige stand: dan geen meldingen
         print("LET OP: prev.json onleesbaar, geen meldingen deze keer:", e)
         prevdata, vorige, oud = {}, {}, {}
+
+    if args.check:  # snelle avondronde (~17 pagina's): alleen een volledige build als er op teambeheer iets veranderd is
+        try:
+            bouwen = check_hash(club_teams()) != prevdata.get("check")
+        except Exception as e:  # teambeheer onbereikbaar of anders: nu niet bouwen; de ochtendrun bouwt en waarschuwt
+            print("Check mislukt, nu niet bouwen:", type(e).__name__, e)
+            bouwen = False
+        print("Veranderd op teambeheer:", "ja" if bouwen else "nee")
+        if out := os.environ.get("GITHUB_OUTPUT"):
+            with open(out, "a", encoding="utf-8") as f:
+                f.write(f"bouwen={'ja' if bouwen else 'nee'}\n")
+        raise SystemExit(0)
+
+    teams = club_teams()
+    chosen = args.team or list(teams)
+    if missing := [t for t in chosen if t not in teams]:
+        raise SystemExit(f"Team {missing} niet gevonden op {B}/web/teams?d={D} - klopt de naam nog?")
+    nav = [dict(naam=n, url=CLUB_URL + slugify(n) + "/") for n in teams]
+    site = HERE / "site"
+    shutil.rmtree(site, ignore_errors=True)  # teams die niet meer bestaan niet laten staan
     seizoen = teams[chosen[0]][1]
 
     club, teamdata, fouten, berichten = [], [], [], []
@@ -556,8 +593,9 @@ if __name__ == "__main__":
     if nieuw:
         alarm("Controle: afwijkende gegevens", "\n".join(nieuw)[:1500])
     if fouten:
-        alarm(f"{len(fouten)} van {len(chosen)} teams niet bijgewerkt",
-              "Deze teams tonen de vorige stand:\n" + "\n".join(fouten))
+        if {f.split(":")[0] for f in fouten} != set(prevdata.get("fouten", [])):  # zelfde storing: niet elke 10 min seinen
+            alarm(f"{len(fouten)} van {len(chosen)} teams niet bijgewerkt",
+                  "Deze teams tonen de vorige stand:\n" + "\n".join(fouten))
         if len(fouten) == len(chosen):
             raise SystemExit("Geen enkel team bijgewerkt - teambeheer onbereikbaar of veranderd?")
 
@@ -581,7 +619,9 @@ if __name__ == "__main__":
         data = dict(bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), seizoen=seizoen, teams=club,
                     ntfy=CLUB_TOPIC, pirates7=PIRATES7_URL, bron=f"{B}/web/teams?d={D}", ics="dv-the-pirates.ics",
                     zones={v: v for v in ZONES.values()}, aanvang=f"{AANVANG[:2]}:{AANVANG[2:4]}", meldingen=log[:30],
-                    archief=[json.loads(a.read_text(encoding="utf-8")) for a in sorted(archief.glob("*.json"), reverse=True)])
+                    archief=[json.loads(a.read_text(encoding="utf-8")) for a in sorted(archief.glob("*.json"), reverse=True)],
+                    # bij een mislukt team geen vingerafdruk: dan probeert de volgende avondronde het opnieuw
+                    fouten=sorted(f.split(":")[0] for f in fouten), check=None if fouten else vingerafdruk(teams))
         (site / "dv-the-pirates.ics").write_bytes(ics("D.V. The Pirates", teamdata).encode())
         (site / "data.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         write_page(site, "club_template.html", data, "D.V. The Pirates", "The Pirates",

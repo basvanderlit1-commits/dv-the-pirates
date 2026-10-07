@@ -271,16 +271,24 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
         if isinstance(pts.get(TEAM, [None] * len(rcols))[k], (int, float)):
             verloop.append(dict(ronde=int(rs[0][i]), pos=1 + sum(v > cum[TEAM] for t, v in cum.items() if t != TEAM)))
 
-    # tegenstanders: adres (route), vorm en beste spelers
+    # tegenstanders: adres (route), vorm, uitslagen en beste spelers (voor de teampreview)
     tegenstanders = {}
     for m in matches:
         naam = m["uit"] if m["thuis"] == TEAM else m["thuis"]
         if m["tegen_id"] and naam not in tegenstanders:
-            o_ms, o_sp, o_loc = parse_team(get(f"/web/team?d={D}&t={m['tegen_id']}&s={S}"), naam)
+            url = f"/web/team?d={D}&t={m['tegen_id']}&s={S}"
+            o_ms, o_sp, o_loc = parse_team(get(url), naam)
             top = [p for p in o_sp if isinstance(p["singles"], int) and p["singles"] > 0 and isinstance(p["winst"], (int, float)) and p["winst"] > 0]
-            tegenstanders[naam] = dict(locatie=o_loc, vorm=[x["uitslag"] for x in o_ms if x["uitslag"]][-5:],
-                                       spelers=[dict(naam=p["naam"], singles=p["singles"], winst=p["winst"])
-                                                for p in sorted(top, key=lambda p: (-p["winst"], -p["singles"]))[:3]])
+            uitslagen = []
+            for x in o_ms:
+                if x["uitslag"]:
+                    h, u = map(int, x["score"].split("-"))
+                    thuis = x["thuis"] == naam
+                    uitslagen.append(dict(ronde=x["ronde"], datum=x["datum"], tegen=x["uit"] if thuis else x["thuis"],
+                                          tu="Thuis" if thuis else "Uit", wij=h if thuis else u, zij=u if thuis else h, uitslag=x["uitslag"]))
+            tegenstanders[naam] = dict(locatie=o_loc, vorm=[x["uitslag"] for x in uitslagen][-5:], uitslagen=uitslagen, url=B + url,
+                                       spelers=[dict(naam=p["naam"], rol=p["rol"], singles=p["singles"], winst=p["winst"])
+                                                for p in sorted(top, key=lambda p: (-p["winst"], -p["singles"]))[:5]])
     for m in matches:  # locatie van nog te spelen wedstrijden: thuis bij ons, uit bij de tegenstander
         if not m.get("locatie") and not m["vrij"]:
             m["locatie"] = locatie if m["thuis"] == TEAM else tegenstanders.get(m["uit"] if m["thuis"] == TEAM else m["thuis"], {}).get("locatie", "")

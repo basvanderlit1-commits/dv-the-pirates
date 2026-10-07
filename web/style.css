@@ -185,6 +185,64 @@ dialog.profiel::backdrop { background: rgba(0, 0, 0, .65); }
 .avond + .avond { margin-top: 12px; }
 .avond h4 { margin: 0 0 2px; font: 600 13px var(--body); color: var(--ink); }
 
+/* teampreview: kaart over de pagina (desktop midden, telefoon van onderen), past zonder scrollen */
+.teamlink { all: unset; cursor: pointer; border-bottom: 1px dashed var(--faint); }
+.teamlink:hover { color: var(--accent); border-color: var(--accent); }
+.teamlink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#stand tr[data-team] { cursor: pointer; }
+@media (hover: hover) { #stand tr[data-team]:hover td { background: var(--sunken); } }
+dialog.teamdlg { width: min(940px, calc(100% - 32px)); max-height: min(92vh, 720px); padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); overflow: hidden; }
+dialog.teamdlg[open] { display: flex; flex-direction: column; animation: tp-in .18s ease-out; }
+dialog.teamdlg::backdrop { background: rgba(0, 0, 0, .65); }
+@keyframes tp-in { from { opacity: 0; transform: translateY(16px); } }
+@keyframes tp-up { from { transform: translateY(100%); } }
+.tp-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--head); border-bottom: 3px solid var(--brand); }
+.tp-head .zone { flex: none; width: 46px; height: 46px; border-radius: 10px; background: var(--raised); font: 700 24px/1 var(--display); }
+.tp-title { flex: 1; min-width: 0; }
+.tp-title h2 { margin: 0; font: 400 24px/1.1 var(--title); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-title small { display: block; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-body { padding: 14px 16px 16px; display: grid; gap: 14px; overflow-y: auto; }
+.tp-kpis { min-height: max-content; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.tp-kpis > div { background: var(--raised); padding: 8px 10px; }
+.tp-kpis b { display: block; font: 700 22px/1.1 var(--display); }
+.tp-kpis span { font-size: 11.5px; color: var(--muted); }
+.tp-kpis .form { display: flex; gap: 3px; margin-top: 3px; }
+.tp-kpis .form .pill { width: 22px; height: 22px; min-width: 0; padding: 0; font-size: 11px; color: inherit; }
+.tp-kpis .form .pill.W { color: var(--win); } .tp-kpis .form .pill.V { color: var(--loss); }
+.tp-tabs { display: none; }
+.tp-cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.tp-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.tp-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-row small { color: var(--muted); }
+.tp-row .r { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.tp-row .pill { height: 20px; min-width: 22px; font-size: 12px; padding: 0 5px; }
+.tp-row .vs { font-weight: 400; color: var(--muted); font-size: 13px; }
+.tp-col .empty { font-size: 13px; color: var(--muted); margin: 4px 0; }
+.tp-foot { display: flex; gap: 8px; }
+.tp-foot .btn { flex: 1; justify-content: center; }
+@media (max-width: 760px) {
+  dialog.teamdlg { width: 100%; max-width: none; max-height: 88dvh; margin: auto 0 0; border: 0; border-radius: 16px 16px 0 0; }
+  dialog.teamdlg[open] { animation: tp-up .22s ease-out; }
+  .tp-head { padding-top: 20px; position: relative; }
+  .tp-head::before { content: ""; position: absolute; top: 7px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line); }
+  .tp-head .zone { width: 40px; height: 40px; font-size: 21px; }
+  .tp-title h2 { font-size: 20px; }
+  .tp-body { padding: 12px 14px calc(14px + env(safe-area-inset-bottom, 0px)); gap: 12px; }
+  .tp-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tp-kpis .vorm { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; }
+  .tp-kpis .vorm .form { margin: 0; order: 1; }
+  .tp-kpis b { font-size: 20px; }
+  .tp-kpis > div { padding: 6px 9px; }
+  .tp-row { padding: 4px 0; }
+  .tp-tabs { display: flex; }
+  .tp-tabs button { flex: 1; }
+  .tp-cols { grid-template-columns: 1fr; min-height: 172px; }
+  .tp-col { display: none; }
+  .tp-cols[data-t="0"] .tp-col:nth-child(1), .tp-cols[data-t="1"] .tp-col:nth-child(2), .tp-cols[data-t="2"] .tp-col:nth-child(3) { display: block; }
+  .tp-col .sub-h { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { dialog.teamdlg[open] { animation: none; } }
+
 /* meldingen */
 .steps { margin: 0 0 6px; padding-left: 20px; display: grid; gap: 4px; color: var(--muted); }
 .steps b, .steps a { color: var(--ink); }

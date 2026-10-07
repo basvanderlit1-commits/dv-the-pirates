@@ -119,7 +119,6 @@
 </main>
 
 <dialog class="profiel" id="profiel" aria-label="Spelersprofiel"></dialog>
-<dialog class="teamdlg" id="teamdlg" aria-label="Teampreview"></dialog>
 
 <nav class="bnav" aria-label="Onderdelen">
   <button data-go="overzicht"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg>Overzicht</button>
@@ -403,52 +402,8 @@ document.querySelectorAll("[data-naam]").forEach(el => {
   el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openProfiel(el.dataset.naam); } });
 });
 
-// ---- teampreview: tik op een team in de stand of op de volgende tegenstander ----
-const tdlg = $("teamdlg");
-const tpRow = (l, r) => `<div class="tp-row"><span>${l}</span><span class="r">${r}</span></div>`;
-const rnd = m => beker(m) ? "Beker" : "R" + esc(m.ronde);
-const sc = ms => ms.map(m => `${m.wij}–${m.zij}`).join(", ");
-function openTeam(naam) {
-  const o = D.tegenstanders[naam] || {}, st = D.stand.find(s => s.team === naam);
-  if (!o.uitslagen && !st) return;
-  const u = o.uitslagen || [];
-  const pw = u.reduce((a, m) => a + m.wij, 0), pn = u.reduce((a, m) => a + m.wij + m.zij, 0);
-  const onder = D.matches.filter(m => m.tegen === naam && !m.vrij);
-  const ucomp = u.filter(m => !beker(m)), wcomp = played.filter(m => !beker(m));
-  const zelfde = [...new Set(ucomp.map(m => m.tegen))].filter(t => t !== D.team)
-    .map(t => [t, wcomp.filter(m => m.tegen === t), ucomp.filter(m => m.tegen === t)]).filter(([, w]) => w.length);
-  const kpis = st
-    ? [["Punten", st.pnt], ["Gemiddeld", nl(st.gem)], ["Winst–verlies", `${st.w}–${st.v}`], ["Partijen", pn ? pct(pw, pn) + "%" : "–"]]
-    : [["Gespeeld", u.length], ["Gewonnen", u.filter(m => m.uitslag === "W").length], ["Verloren", u.filter(m => m.uitslag === "V").length], ["Partijen", pn ? pct(pw, pn) + "%" : "–"]];
-  tdlg.innerHTML = `<div class="tp-head">
-    <span class="zone${st && st.zone ? " z-" + st.zone : ""}" title="${esc(st ? ZONE[st.zone] || "positie" : "")}">${st ? st.pos : "–"}</span>
-    <div class="tp-title"><h2>${esc(naam)}</h2><small>${st ? `${st.pos}e van ${D.stand.length} in ${esc(D.div)}` : "andere divisie"}${o.locatie ? " · " + esc(o.locatie) : ""}</small></div>
-    <button class="dlg-close" type="button" aria-label="Sluiten">×</button></div>
-  <div class="tp-body">
-    <div class="tp-kpis">${kpis.map(([l, v]) => `<div><b>${esc(v)}</b><span>${l}</span></div>`).join("")}
-      <div class="vorm"><div class="form">${vormPills(o.vorm) || `<b>–</b>`}</div><span>Vorm</span></div></div>
-    ${onder.length ? `<div><h3 class="sub-h">Tegen ${esc(D.team)}</h3>${onder.map(m => tpRow(`${rnd(m)} · ${m.tu.toLowerCase()} <small>· ${esc(m.datum)}</small>`,
-      m.uitslag ? `${m.wij}–${m.zij} ${pill(m.uitslag)}` : `<span class="vs">${toDate(m.datum) >= today ? when(m) : "nog geen uitslag"}</span>`)).join("")}</div>` : ""}
-    <div class="tabs tp-tabs" role="tablist">${["Uitslagen", "Spelers", "Vergelijk"].map((t, i) => `<button role="tab" type="button" data-t="${i}" aria-selected="${!i}">${t}</button>`).join("")}</div>
-    <div class="tp-cols" data-t="0">
-      <div class="tp-col"><h3 class="sub-h">Laatste uitslagen</h3>${[...u].reverse().slice(0, 6).map(m => tpRow(`${rnd(m)} · ${esc(m.tegen)} <small>${m.tu.toLowerCase()}</small>`, `${m.wij}–${m.zij} ${pill(m.uitslag)}`)).join("") || `<p class="empty">Nog niet gespeeld.</p>`}</div>
-      <div class="tp-col"><h3 class="sub-h">Sterkste spelers (singles)</h3>${(o.spelers || []).map(p => tpRow(`${esc(p.naam)}${p.rol === "Captain" ? ` <small>C</small>` : ""}`, `${nl(p.winst, 0)}% <span class="vs">${p.singles} gesp.</span>`)).join("") || `<p class="empty">Nog geen gegevens.</p>`}</div>
-      <div class="tp-col"><h3 class="sub-h">Zelfde tegenstander</h3>${zelfde.slice(0, 6).map(([t, w, z]) => tpRow(esc(t), `<span class="vs">wij</span> ${sc(w)} <span class="vs">zij</span> ${z.length ? sc(z) : "–"}`)).join("") || `<p class="empty">Nog geen gezamenlijke tegenstanders.</p>`}</div>
-    </div>
-    <div class="tp-foot">${o.locatie ? `<a class="btn" href="${maps(o.locatie)}" target="_blank" rel="noopener">Route ↗</a>` : ""}${o.url ? `<a class="btn ghost" href="${esc(o.url)}" target="_blank" rel="noopener">Teambeheer ↗</a>` : ""}</div>
-  </div>`;
-  tdlg.querySelector(".dlg-close").addEventListener("click", () => tdlg.close());
-  tdlg.querySelectorAll(".tp-tabs button").forEach(b => b.addEventListener("click", () => {
-    tdlg.querySelector(".tp-cols").dataset.t = b.dataset.t;
-    tdlg.querySelectorAll(".tp-tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
-  }));
-  tdlg.showModal();
-}
-tdlg.addEventListener("click", e => { if (e.target === tdlg) tdlg.close(); });
-for (const el of [$("stand"), $("preview")]) {
-  el.addEventListener("click", e => { const t = e.target.closest("[data-team]"); if (t) openTeam(t.dataset.team); });
-  el.addEventListener("keydown", e => { const t = e.target.closest("tr[data-team]"); if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openTeam(t.dataset.team); } });
-}
+// ---- teampreview: tik op een team in de stand of op de volgende tegenstander (gedeeld.js) ----
+bindTeamPreview(() => D);
 
 // ---- meldingen (ntfy) ----
 $("topic").textContent = D.ntfy;

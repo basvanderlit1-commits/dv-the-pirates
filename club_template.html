@@ -207,6 +207,13 @@ const when = s => { const n = Math.round((toDate(s) - today) / 864e5); return n 
 const bar = (w, n) => n
   ? `<div class="bar"><div class="track"><div class="fill" style="width:${pct(w, n)}%"></div></div><span class="num"><b>${w}</b>/${n} · ${pct(w, n)}%</span></div>`
   : `<span class="dim">–</span>`;
+// tegenstander als klikbare naam: opent de teampreview (gedeeld.js) vanuit dit Pirates-team
+const opp = (naam, van, cls = "teamlink") => {
+  const t = T.find(x => x.naam === van);  // zonder gegevens over de tegenstander: gewone tekst
+  return t && ((t.tegenstanders || {})[naam] || (t.stand || []).some(s => s.team === naam))
+    ? `<span class="${cls}" role="button" tabindex="0" data-team="${esc(naam)}" data-van="${esc(van)}">${esc(naam)}</span>`
+    : `<span class="${cls.replace("teamlink", "")}">${esc(naam)}</span>`;
+};
 const tail = (arr, f) => { let n = 0; for (let i = arr.length - 1; i >= 0 && f(arr[i]); i--) n++; return n; };
 
 // ---- data: teams, partijen en spelers van de hele club ----
@@ -307,8 +314,8 @@ $("teams").innerHTML = T.map(t => {
     <div class="tnums"><div><b>${t.pos ?? "–"}e</b><span>van ${t.teams}</span></div><div><b>${t.pnt ?? "–"}</b><span>punten</span></div><div><b>${t.gem != null ? nl(t.gem) : "–"}</b><span>gemiddeld</span></div></div>
     ${t.zone ? `<div class="tzone"><span class="zone z-${t.zone}"></span>${ZONE[t.zone]}</div>` : ""}
     <div class="form">${t.played.slice(-5).map(m => pill(m.uitslag)).join("") || `<span class="dim">nog niet gespeeld</span>`}</div>
-    <div class="tline"><span>Laatste</span><span>${last ? `${pill(last.uitslag)} <b>${last.wij}–${last.zij}</b> ${esc(last.tegen)}` : `<span class="dim">–</span>`}</span></div>
-    <div class="tline"><span>Volgende</span><span>${nx ? `<b>${dag(nx.datum)}</b> ${esc(nx.tegen)} <span class="dim">· ${nx.tu.toLowerCase()}</span>` : `<span class="dim">seizoen klaar</span>`}</span></div>
+    <div class="tline"><span>Laatste</span><span>${last ? `${pill(last.uitslag)} <b>${last.wij}–${last.zij}</b> ${opp(last.tegen, t.naam)}` : `<span class="dim">–</span>`}</span></div>
+    <div class="tline"><span>Volgende</span><span>${nx ? `<b>${dag(nx.datum)}</b> ${opp(nx.tegen, t.naam)} <span class="dim">· ${nx.tu.toLowerCase()}</span>` : `<span class="dim">seizoen klaar</span>`}</span></div>
   </a>`;
 }).join("");
 
@@ -328,7 +335,7 @@ $("teams").innerHTML = T.map(t => {
   $("week").innerHTML = list.map(m => {
     const h = m.datum !== cur ? `<h3 class="sub-h wday">${dag(m.datum)} · ${when(m.datum)}</h3>` : "";
     cur = m.datum;
-    return h + `<div class="wrow"><a class="wteam" href="${esc(m.url)}">${esc(m.team)}</a><span class="wopp"><small>${m.tu === "Thuis" ? "thuis tegen" : "uit bij"}</small> ${esc(m.tegen)}${beker(m) ? ` <small>· beker</small>` : ""}</span>
+    return h + `<div class="wrow"><a class="wteam" href="${esc(m.url)}">${esc(m.team)}</a><span class="wopp"><small>${m.tu === "Thuis" ? "thuis tegen" : "uit bij"}</small> ${opp(m.tegen, m.team)}${beker(m) ? ` <small>· beker</small>` : ""}</span>
       <span class="score${m.uitslag ? "" : " dim"}">${m.uitslag ? `${m.wij}–${m.zij}` : "–"}</span>${m.uitslag ? `<span class="wend">${pill(m.uitslag)}${shareBtn(m)}</span>` : m.locatie ? `<a class="route" href="${maps(m.locatie)}" target="_blank" rel="noopener" aria-label="Route naar ${esc(m.tegen)}">route ↗</a>` : "<span></span>"}</div>`;
   }).join("") || `<p class="empty">Geen wedstrijden gepland.</p>`;
 })();
@@ -342,7 +349,7 @@ $("teams").innerHTML = T.map(t => {
   $("thuis").innerHTML = list.map(m => {
     const h = m.datum !== cur ? `<h3 class="sub-h wday">${dag(m.datum)} · ${when(m.datum)}</h3>` : "";
     cur = m.datum;
-    return h + `<div class="hrow"><a class="wteam" href="${esc(m.url)}">${esc(m.team)}</a><span class="wopp"><small>tegen</small> ${esc(m.tegen)}</span>${m.uitslag ? `<span class="score">${m.wij}–${m.zij}</span>` : "<span></span>"}<small class="dim hloc">${esc(m.locatie)}</small></div>`;
+    return h + `<div class="hrow"><a class="wteam" href="${esc(m.url)}">${esc(m.team)}</a><span class="wopp"><small>tegen</small> ${opp(m.tegen, m.team)}</span>${m.uitslag ? `<span class="score">${m.wij}–${m.zij}</span>` : "<span></span>"}<small class="dim hloc">${esc(m.locatie)}</small></div>`;
   }).join("") || `<p class="empty">Geen thuiswedstrijden in deze twee weken.</p>`;
 })();
 
@@ -441,8 +448,8 @@ const top180 = Object.entries(c180).sort(([a, x], [b, y]) => y - x || a.localeCo
       const m = t.matches.find(x => x.ronde === r);
       if (!m) return `<td class="dim">–</td>`;
       if (m.vrij) return `<td class="dim">vrije week</td>`;
-      if (!m.uitslag) return `<td title="${esc(m.tegen)}"><b>${dag(m.datum)}</b> <span class="dim bopp">${esc(m.tegen)}</span></td>`;
-      return `<td title="${esc(m.tegen)}">${pill(m.uitslag)} <b>${m.wij}–${m.zij}</b> <span class="dim bopp">${esc(m.tegen)}</span></td>`;
+      if (!m.uitslag) return `<td title="${esc(m.tegen)}"><b>${dag(m.datum)}</b> ${opp(m.tegen, t.naam, "teamlink dim bopp")}</td>`;
+      return `<td title="${esc(m.tegen)}">${pill(m.uitslag)} <b>${m.wij}–${m.zij}</b> ${opp(m.tegen, t.naam, "teamlink dim bopp")}</td>`;
     }).join("")}</tr>`).join("") + "</tbody>"
     : `<tbody><tr><td class="empty">Nog geen bekerwedstrijden.</td></tr></tbody>`;
 })();
@@ -527,6 +534,7 @@ $("topics").innerHTML = T.map(t => `<h4 class="tname">${esc(t.naam)}</h4>` + top
 $("mlog").innerHTML = (D.meldingen || []).slice(0, 10).map(m => `<li><span class="dim">${esc(m.tijd)}</span> · ${esc(m.titel)}</li>`).join("")
   || `<li class="empty">Nog geen meldingen verstuurd sinds dit logboek bestaat.</li>`;
 bindCopy();
+bindTeamPreview(el => { const t = T.find(x => x.naam === el.dataset.van); return t && { team: t.naam, div: t.div, stand: t.stand, tegenstanders: t.tegenstanders, matches: t.matches }; });
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-share]");
   if (b) shareResult(SHARE[b.dataset.share], b);

@@ -33,6 +33,73 @@ function bindCopy() {
   });
 }
 
+// teampreview: kaart met stand, uitslagen, spelers en vergelijking van een tegenstander.
+// t = { team, div, stand, tegenstanders, matches } van het Pirates-team vanuit wiens oogpunt we kijken.
+// Geeft false als er niets te tonen is (dan gaat een eventuele link gewoon door).
+function teamPreview(t, naam) {
+  const e = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const getal = (v, d = 1) => Number(v).toLocaleString("nl-NL", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const pil = r => r ? `<span class="pill ${r}">${r}</span>` : "";
+  const isB = m => m.ronde.startsWith("b"), rn = m => isB(m) ? "Beker" : "R" + e(m.ronde);
+  const datum = s => { const [d, m, y] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const vandaag = new Date(); vandaag.setHours(0, 0, 0, 0);
+  const over = s => { const n = Math.round((datum(s) - vandaag) / 864e5); return n <= 0 ? "vandaag" : n === 1 ? "morgen" : `over ${n} dagen`; };
+  const sc = ms => ms.map(m => `${m.wij}–${m.zij}`).join(", ");
+  const row = (l, r) => `<div class="tp-row"><span>${l}</span><span class="r">${r}</span></div>`;
+  const o = (t.tegenstanders || {})[naam] || {}, st = (t.stand || []).find(s => s.team === naam);
+  if (!o.uitslagen && !st) return false;
+  const u = o.uitslagen || [];
+  const pw = u.reduce((a, m) => a + m.wij, 0), pn = u.reduce((a, m) => a + m.wij + m.zij, 0), pp = pn ? Math.round(100 * pw / pn) + "%" : "–";
+  const onder = t.matches.filter(m => m.tegen === naam && !m.vrij);
+  const ucomp = u.filter(m => !isB(m)), wcomp = t.matches.filter(m => m.uitslag && !isB(m));
+  const zelfde = [...new Set(ucomp.map(m => m.tegen))].filter(x => x !== t.team)
+    .map(x => [x, wcomp.filter(m => m.tegen === x), ucomp.filter(m => m.tegen === x)]).filter(([, w]) => w.length);
+  const kpis = st
+    ? [["Punten", st.pnt], ["Gemiddeld", getal(st.gem)], ["Winst–verlies", `${st.w}–${st.v}`], ["Partijen", pp]]
+    : [["Gespeeld", u.length], ["Gewonnen", u.filter(m => m.uitslag === "W").length], ["Verloren", u.filter(m => m.uitslag === "V").length], ["Partijen", pp]];
+  let dlg = document.getElementById("teamdlg");
+  if (!dlg) {
+    dlg = document.body.appendChild(Object.assign(document.createElement("dialog"), { id: "teamdlg", className: "teamdlg" }));
+    dlg.setAttribute("aria-label", "Teampreview");
+    dlg.addEventListener("click", ev => {
+      if (ev.target === dlg || ev.target.closest(".dlg-close")) return dlg.close();
+      const b = ev.target.closest(".tp-tabs button");
+      if (!b) return;
+      dlg.querySelector(".tp-cols").dataset.t = b.dataset.t;
+      dlg.querySelectorAll(".tp-tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+    });
+  }
+  dlg.innerHTML = `<div class="tp-head">
+    <span class="zone${st && st.zone ? " z-" + st.zone : ""}" title="${e(st ? ZONE[st.zone] || "positie" : "")}">${st ? st.pos : "–"}</span>
+    <div class="tp-title"><h2>${e(naam)}</h2><small>${st ? `${st.pos}e van ${t.stand.length} in ${e(t.div)}` : "andere divisie"}${o.locatie ? " · " + e(o.locatie) : ""}</small></div>
+    <button class="dlg-close" type="button" aria-label="Sluiten">×</button></div>
+  <div class="tp-body">
+    <div class="tp-kpis">${kpis.map(([l, v]) => `<div><b>${e(v)}</b><span>${l}</span></div>`).join("")}
+      <div class="vorm"><div class="form">${(o.vorm || []).map(pil).join("") || `<b>–</b>`}</div><span>Vorm</span></div></div>
+    ${onder.length ? `<div><h3 class="sub-h">Tegen ${e(t.team)}</h3>${onder.map(m => row(`${rn(m)} · ${m.tu.toLowerCase()} <small>· ${e(m.datum)}</small>`,
+      m.uitslag ? `${m.wij}–${m.zij} ${pil(m.uitslag)}` : `<span class="vs">${datum(m.datum) >= vandaag ? over(m.datum) : "nog geen uitslag"}</span>`)).join("")}</div>` : ""}
+    <div class="tabs tp-tabs" role="tablist">${["Uitslagen", "Spelers", "Vergelijk"].map((x, i) => `<button role="tab" type="button" data-t="${i}" aria-selected="${!i}">${x}</button>`).join("")}</div>
+    <div class="tp-cols" data-t="0">
+      <div class="tp-col"><h3 class="sub-h">Laatste uitslagen</h3>${[...u].reverse().slice(0, 6).map(m => row(`${rn(m)} · ${e(m.tegen)} <small>${m.tu.toLowerCase()}</small>`, `${m.wij}–${m.zij} ${pil(m.uitslag)}`)).join("") || `<p class="empty">Nog niet gespeeld.</p>`}</div>
+      <div class="tp-col"><h3 class="sub-h">Sterkste spelers (singles)</h3>${(o.spelers || []).map(p => row(`${e(p.naam)}${p.rol === "Captain" ? ` <small>C</small>` : ""}`, `${getal(p.winst, 0)}% <span class="vs">${p.singles} gesp.</span>`)).join("") || `<p class="empty">Nog geen gegevens.</p>`}</div>
+      <div class="tp-col"><h3 class="sub-h">Zelfde tegenstander</h3>${zelfde.slice(0, 6).map(([x, w, z]) => row(e(x), `<span class="vs">wij</span> ${sc(w)} <span class="vs">zij</span> ${z.length ? sc(z) : "–"}`)).join("") || `<p class="empty">Nog geen gezamenlijke tegenstanders.</p>`}</div>
+    </div>
+    <div class="tp-foot">${o.locatie ? `<a class="btn" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.locatie)}" target="_blank" rel="noopener">Route ↗</a>` : ""}${o.url ? `<a class="btn ghost" href="${e(o.url)}" target="_blank" rel="noopener">Teambeheer ↗</a>` : ""}</div>
+  </div>`;
+  dlg.showModal();
+  return true;
+}
+
+// elk element met data-team opent de teampreview; ctx(el) geeft het Pirates-team erbij
+function bindTeamPreview(ctx) {
+  const open = (ev, el) => { const t = ctx(el); if (t && teamPreview(t, el.dataset.team)) { ev.preventDefault(); ev.stopPropagation(); } };
+  document.addEventListener("click", ev => { const el = ev.target.closest("[data-team]"); if (el) open(ev, el); }, true);
+  document.addEventListener("keydown", ev => {
+    const el = ev.target.closest && ev.target.closest("[data-team]");
+    if (el && el.tagName !== "BUTTON" && (ev.key === "Enter" || ev.key === " ")) open(ev, el);
+  });
+}
+
 // uitslag als afbeelding (1080x1080) delen via WhatsApp/teamapp; zonder deelfunctie wordt hij gedownload
 async function shareResult(r, btn) {
   const label = btn && btn.textContent;

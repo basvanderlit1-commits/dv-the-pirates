@@ -457,7 +457,7 @@ def summary(d, url):
                 gem=me.get("gem"), w=me.get("w"), v=me.get("v"), ntfy=d["ntfy"],
                 matches=[{k: m[k] for k in ("ronde", "datum", "tegen", "tu", "uitslag", "wij", "zij", "vrij", "locatie")}
                          for m in d["matches"]],
-                bijz=d["bijz"], zone=me.get("zone", ""), ics=d["ics"], seizoen=d["seizoen"], controle=d["controle"], locatie=d["locatie"], spelers=[s["naam"] for s in d["spelers"]],
+                bijz=d["bijz"], stand=d["stand"], tegenstanders=d["tegenstanders"], zone=me.get("zone", ""), ics=d["ics"], seizoen=d["seizoen"], controle=d["controle"], locatie=d["locatie"], spelers=[s["naam"] for s in d["spelers"]],
                 games=[[g["ronde"], g["type"], g["wij"], g["uitslag"], g["lw"], g["lz"]] for g in d["games"]])
 
 

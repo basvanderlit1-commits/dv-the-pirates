@@ -187,6 +187,7 @@ dialog.profiel::backdrop { background: rgba(0, 0, 0, .65); }
 
 /* teampreview: kaart over de pagina (desktop midden, telefoon van onderen), past zonder scrollen */
 .teamlink { all: unset; cursor: pointer; border-bottom: 1px dashed var(--faint); }
+.teamlink.dim { color: var(--faint); }
 .teamlink:hover { color: var(--accent); border-color: var(--accent); }
 .teamlink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #stand tr[data-team] { cursor: pointer; }

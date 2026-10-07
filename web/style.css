@@ -190,7 +190,7 @@ dialog.profiel::backdrop { background: rgba(0, 0, 0, .65); }
 .teamlink.dim { color: var(--faint); }
 .teamlink:hover { color: var(--accent); border-color: var(--accent); }
 .teamlink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-#stand tr[data-team] { cursor: pointer; }
+#stand tr[data-team], .cell[data-team] { cursor: pointer; }
 @media (hover: hover) { #stand tr[data-team]:hover td { background: var(--sunken); } }
 dialog.teamdlg { width: min(940px, calc(100% - 32px)); max-height: min(92vh, 720px); padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--ink); overflow: hidden; }
 dialog.teamdlg[open] { display: flex; flex-direction: column; animation: tp-in .18s ease-out; }

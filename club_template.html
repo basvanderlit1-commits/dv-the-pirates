@@ -208,11 +208,11 @@ const bar = (w, n) => n
   ? `<div class="bar"><div class="track"><div class="fill" style="width:${pct(w, n)}%"></div></div><span class="num"><b>${w}</b>/${n} · ${pct(w, n)}%</span></div>`
   : `<span class="dim">–</span>`;
 // tegenstander als klikbare naam: opent de teampreview (gedeeld.js) vanuit dit Pirates-team
-const opp = (naam, van, cls = "teamlink") => {
+const opp = (naam, van, cls = "teamlink", inhoud = esc(naam), title = "") => {
   const t = T.find(x => x.naam === van);  // zonder gegevens over de tegenstander: gewone tekst
   return t && ((t.tegenstanders || {})[naam] || (t.stand || []).some(s => s.team === naam))
-    ? `<span class="${cls}" role="button" tabindex="0" data-team="${esc(naam)}" data-van="${esc(van)}">${esc(naam)}</span>`
-    : `<span class="${cls.replace("teamlink", "")}">${esc(naam)}</span>`;
+    ? `<span class="${cls}" role="button" tabindex="0" data-team="${esc(naam)}" data-van="${esc(van)}"${title ? ` title="${esc(title)}"` : ""}>${inhoud}</span>`
+    : `<span class="${cls.replace("teamlink", "")}"${title ? ` title="${esc(title)}"` : ""}>${inhoud}</span>`;
 };
 const tail = (arr, f) => { let n = 0; for (let i = arr.length - 1; i >= 0 && f(arr[i]); i--) n++; return n; };
 
@@ -364,7 +364,7 @@ $("teams").innerHTML = T.map(t => {
       if (!m) return `<td class="c dim">·</td>`;
       if (m.vrij) return `<td class="c dim">vrij</td>`;
       if (!m.uitslag) return `<td class="c dim" title="${esc(m.tegen)} · ${esc(m.datum)} · nog geen uitslag">–</td>`;
-      return `<td class="c"><span class="cell ${m.uitslag}" title="${esc(m.tegen)} · ${esc(m.datum)}">${m.wij}–${m.zij}</span></td>`;
+      return `<td class="c">${opp(m.tegen, t.naam, "cell " + m.uitslag, `${m.wij}–${m.zij}`, `${m.tegen} · ${m.datum}`)}</td>`;
     }).join("")}<td class="n"><b>${t.played.filter(m => m.uitslag === "W").length}–${t.played.filter(m => m.uitslag === "V").length}</b></td></tr>`).join("") + "</tbody>"
     : `<tbody><tr><td class="empty">Nog geen avonden gespeeld.</td></tr></tbody>`;
 })();
@@ -459,7 +459,7 @@ const top180 = Object.entries(c180).sort(([a, x], [b, y]) => y - x || a.localeCo
   const names = new Set(T.map(t => t.naam)), seen = new Set();
   const list = all.filter(m => names.has(m.tegen)).filter(m => { const k = m.ronde + "|" + [m.team, m.tegen].sort().join("|"); return seen.has(k) ? false : seen.add(k); }).sort(byDate);
   $("derby").innerHTML = list.length
-    ? list.map(m => `<div class="wrow"><b>${esc(m.team)}</b><span class="wopp"><small>${m.tu === "Thuis" ? "thuis tegen" : "uit bij"}</small> ${esc(m.tegen)} <small>· ${beker(m) ? "beker" : "ronde " + esc(m.ronde)} · ${dag(m.datum)}</small></span><span class="score${m.uitslag ? "" : " dim"}">${m.uitslag ? `${m.wij}–${m.zij}` : "–"}</span>${pill(m.uitslag) || "<span></span>"}</div>`).join("")
+    ? list.map(m => `<div class="wrow"><b>${opp(m.team, m.tegen)}</b><span class="wopp"><small>${m.tu === "Thuis" ? "thuis tegen" : "uit bij"}</small> ${opp(m.tegen, m.team)} <small>· ${beker(m) ? "beker" : "ronde " + esc(m.ronde)} · ${dag(m.datum)}</small></span><span class="score${m.uitslag ? "" : " dim"}">${m.uitslag ? `${m.wij}–${m.zij}` : "–"}</span>${pill(m.uitslag) || "<span></span>"}</div>`).join("")
     : `<p class="empty">Dit seizoen spelen alle Pirates-teams in een andere divisie. Lootten twee teams tegen elkaar in de beker, dan staat de derby hier.</p>`;
 })();
 

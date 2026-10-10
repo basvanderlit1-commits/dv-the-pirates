@@ -187,6 +187,59 @@ def sheet(wb, title, header, data):
         ws.auto_filter.ref = ws.dimensions
 
 
+def controleer(TEAM, matches, games, spelers, agg, stand, pk, bijz, bijz_lists, tegenstanders):
+    """Onze tellingen naast de lijsten van teambeheer. Teambeheer zelf is de bron: een afwijking betekent dat wij
+    iets verkeerd lezen of tellen (of dat teambeheer iets nieuws doet), en wordt een seintje aan de beheerder."""
+    fout, beker = [], lambda r: r.startswith("b")
+    # stand: teambeheer werkt die soms later bij dan de uitslagen, dus alleen vergelijken bij evenveel wedstrijden
+    st = {r[1]: [num(x) for x in r[2:6]] for r in stand[1:] if len(r) > 5}
+    def tegen_stand(naam, uitslagen):  # uitslagen: [(punten, "W"/"V"/"G")] in de competitie
+        if naam not in st:
+            return
+        wed, w, v, pnt = st[naam]
+        ons = (len(uitslagen), sum(u == "W" for _, u in uitslagen), sum(u == "V" for _, u in uitslagen), sum(p for p, _ in uitslagen))
+        if ons[0] < wed or (ons[0] == wed and ons != (wed, w, v, pnt)):
+            fout.append(f"{naam}: wij lezen {ons[0]} wed/{ons[1]}W/{ons[2]}V/{ons[3]} pnt, de stand zegt {wed}/{w}W/{v}V/{pnt} pnt")
+    tegen_stand(TEAM, [(m["h"] if m["thuis"] == TEAM else m["u"], m["uitslag"]) for m in matches if m["uitslag"] and not beker(m["ronde"])])
+    for o, t in tegenstanders.items():
+        tegen_stand(o, [(m["wij"], m["uitslag"]) for m in t["uitslagen"] if not beker(m["ronde"])])
+    # per speler per avond: 1 single, 2 koppels, 2 round robin (plus de beslissende "RR Solo" bij 4-4)
+    per = defaultdict(int)
+    for g in games:
+        soort = game_type(g["onderdeel"])
+        if soort != "Team" and "Solo" not in g["onderdeel"]:
+            for p in g["wij"].split(", "):
+                per[(g["ronde"], p, soort)] += 1
+    fout += [f"ronde {r}: {p} speelde {n}x {soort}" for (r, p, soort), n in per.items() if n > {"Single": 1, "Koppel": 2, "RR": 2}[soort]]
+    namen = {s["naam"] for s in spelers}
+    if vreemd := {p for g in games for p in g["wij"].split(", ") if p != "(team)" and p not in namen}:
+        fout.append("op het formulier maar niet in de spelerslijst: " + ", ".join(sorted(vreemd)))
+    # singles per speler (competitie en beker) = spelerstabel op de teampagina
+    for s in spelers:
+        n, w = agg[s["naam"]]["s_gesp"], agg[s["naam"]]["s_w"]
+        if isinstance(s["singles"], int) and (n != s["singles"] or (n and isinstance(s["winst"], (int, float)) and abs(100 * w / n - s["winst"]) > 1)):
+            fout.append(f"{s['naam']}: singles {w}/{n}, teambeheer {s['singles']} gespeeld, {s['winst']}%")
+    # persoonlijk klassement (alleen competitie)
+    for soort, tab in pk.items():
+        for r in tab[1:]:
+            if len(r) > 6 and r[2] == TEAM:
+                gs = [g for g in games if game_type(g["onderdeel"]) == soort and not beker(g["ronde"]) and r[1] in g["wij"].split(", ")]
+                if len(gs) != num(r[3]) or abs(100 * sum(g["uitslag"] == "W" for g in gs) / max(len(gs), 1) - num(r[6])) > 1:
+                    fout.append(f"{r[1]}: klassement {soort.lower()}s {r[3]} gespeeld {r[6]}%, wij {sum(g['uitslag'] == 'W' for g in gs)}/{len(gs)}")
+    # 180's, 171's en hoogste finish per speler (competitie) = lijsten van teambeheer
+    if onbekend := {b["prestatie"] for b in bijz if not re.fullmatch(r"\d+x \d+|\d+ finish", b["prestatie"])}:
+        fout.append("onbekende bijzondere prestaties: " + ", ".join(sorted(onbekend)))
+    bz = [b for b in bijz if not beker(b["ronde"])]
+    for lijst, waarde in (("180ers", lambda p: n180(p)), ("171ers", lambda p: int(m[1]) if (m := re.fullmatch(r"(\d+)x 171", p)) else 0),
+                          ("Hoogste finishes", lambda p: int(p.split()[0]) if p.endswith(" finish") else 0)):
+        tb = {r[1]: int(str(r[4]).split()[0]) for r in bijz_lists[lijst][1:] if len(r) > 4 and r[2] == TEAM}  # "125 +1" = 125, vaker gegooid
+        ons = defaultdict(int)
+        for b in bz:
+            ons[b["speler"]] = max(ons[b["speler"]], waarde(b["prestatie"])) if lijst == "Hoogste finishes" else ons[b["speler"]] + waarde(b["prestatie"])
+        fout += [f"{p} {lijst}: wij {ons[p]}, teambeheer {tb.get(p, 0)}" for p in set(ons) | set(tb) if ons[p] != tb.get(p, 0)]
+    return fout
+
+
 def build_team(TEAM, TEAM_ID, S, out, nav):
     """Haalt alles van één team op, schrijft de Excel in out/ en geeft de dashboard-data terug."""
     team = get(f"/web/team?d={D}&t={TEAM_ID}&s={S}")
@@ -232,8 +285,6 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
                 controle.append(f"ronde {m['ronde']}: uitslag {m['score']} (thuis-uit), partijen tellen op tot {som[0]}-{som[1]} (wij-zij)")
     if onbekend :={g["onderdeel"] for g in games if game_type(g["onderdeel"]) == "Team" and not g["onderdeel"].startswith("Team")}:
         controle.append("onderdelen niet herkend als single/koppel/RR: " + ", ".join(sorted(onbekend)))
-    for c in controle:
-        print(f"LET OP ({TEAM}):", c)
     ours = {s["naam"] for s in spelers}
     for b in bijz:
         b["team"] = TEAM if b["speler"] in ours else "tegenstander"
@@ -304,6 +355,10 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
     for t, name in [(1, "180ers"), (2, "Hoogste finishes"), (3, "Snelste leg"), (4, "171ers")]:
         tab = get(f"/web/scorelijst-bijzres/?d={D}&t={t}&s={S}&filter=P-{DIV}").find("table")
         bijz_lists[name] = rows(tab) if tab else [["(geen data)"]]
+    controle += controleer(TEAM, matches, games, spelers, agg, stand, {"Single": pk_single, "Koppel": pk_koppel},
+                           [b for b in bijz if b["team"] == TEAM], bijz_lists, tegenstanders)
+    for c in controle:
+        print(f"LET OP ({TEAM}):", c)
 
     # ---------- voorbereiden ----------
     for m in matches:

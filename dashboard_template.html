@@ -258,9 +258,9 @@ showProgramma(startTab);
 // ---- bijzondere resultaten ----
 const rank = D.bijzrank.reduce((a, r) => (a[r.speler + r.lijst] = r.pos, a), {});
 $("bijz").innerHTML = D.bijz.map(b => {
-  const is180 = /180/.test(b.prestatie);
-  const pos = rank[b.speler + (is180 ? "180ers" : "Hoogste finishes")];
-  return `<div class="chip"><b>${is180 ? "180" : esc(b.prestatie.replace(" finish", ""))}</b><span>${is180 ? "maximum" : "finish"} · ${esc(b.speler)}<br>${esc(b.datum)}${pos ? ` · #${pos}e in ${D.div}` : ""}</span></div>`;
+  const fin = /finish/.test(b.prestatie);
+  const pos = rank[b.speler + (fin ? "Hoogste finishes" : aantal180(b.prestatie) ? "180ers" : / 171$/.test(b.prestatie) ? "171ers" : "")];
+  return `<div class="chip"><b>${esc(prestatieKort(b.prestatie))}</b><span>${fin ? "finish" : "maximum"} · ${esc(b.speler)}<br>${esc(b.datum)}${pos ? ` · #${pos}e in ${D.div}` : ""}</span></div>`;
 }).join("") || `<p class="empty">Nog geen 180's of hoge finishes.</p>`;
 
 // ---- persoonlijk klassement ----

@@ -41,7 +41,14 @@ assert s.nieuwe_uitslagen(d, {"1", "2"}, "https://x/") == []
 
 # archief: korte eindstand per team
 a = s.archief_van(dict(seizoen="25-26", teams=[dict(naam="Pirates 7", div="4A", pos=2, teams=14, pnt=150, w=18, v=8,
-                                                    bijz=[dict(prestatie="180"), dict(prestatie="121 finish")])]))
-assert a["seizoen"] == "25-26" and a["teams"][0]["n180"] == 1 and a["teams"][0]["finish"] == 121
+                                                    bijz=[dict(prestatie="2x 180"), dict(prestatie="1x 171"), dict(prestatie="121 finish")])]))
+assert a["seizoen"] == "25-26" and a["teams"][0]["n180"] == 2 and a["teams"][0]["finish"] == 121
+
+# reglementaire uitslag: "W 5--5" zonder link naar een formulier telt wel mee
+from bs4 import BeautifulSoup
+html = ("<table><tr><th>#</th></tr><tbody><tr><td>1</td><td>10-09-2026</td><td>Wij</td>"
+        "<td><a href='/web/team?t=9'>Zij</a></td><td><b>W</b>5--5</td></tr></tbody></table>")
+m = s.parse_team(BeautifulSoup(html, "html.parser"), "Wij")[0][0]
+assert (m["uitslag"], m["h"], m["u"], m["form"]) == ("W", 5, -5, None), m
 
 print("alle controles OK")

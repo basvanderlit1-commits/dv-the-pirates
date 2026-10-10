@@ -236,9 +236,9 @@ players.forEach(p => p.games.sort(byDate));
 const profiel = (naam, url) => `${url}?speler=${encodeURIComponent(naam)}`;
 const who = (naam, team) => { const t = T.find(x => x.naam === team); return t ? `<a class="plink" href="${esc(profiel(naam, t.url))}">${esc(naam)}</a>` : esc(naam); };
 const bijz = T.flatMap(t => t.bijz.map(b => ({ ...b, team: t.naam })));
-const is180 = b => /180/.test(b.prestatie);
-const fins = bijz.filter(b => /finish/.test(b.prestatie)).map(b => ({ ...b, v: parseInt(b.prestatie, 10) })).sort((a, b) => b.v - a.v);
-const n180 = bijz.filter(is180).length;
+const is180 = b => aantal180(b.prestatie) > 0, isFin = b => /finish/.test(b.prestatie);
+const fins = bijz.filter(isFin).map(b => ({ ...b, v: parseInt(b.prestatie, 10) })).sort((a, b) => b.v - a.v);
+const n180 = bijz.reduce((a, b) => a + aantal180(b.prestatie), 0);
 const SHARE = {};  // deelknoppen: id -> uitslag
 const shareBtn = m => {
   const id = m.team + "|" + m.ronde;
@@ -275,17 +275,19 @@ const wk = lastDay && mon(lastDay);
   if (!wk) { $("spvw").innerHTML = $("uvw").innerHTML = `<p class="empty">Nog niets gespeeld.</p>`; return; }
   const lbl = `week van ${fmt(wk)}`;
   $("spvwSub").textContent = lbl;
-  // punten: gewonnen partijen, plus 1 voor elke 180 en elke finish van 100+; bij gelijkstand winst% en legsaldo
-  const kand = players.map(p => {
-    const gs = p.games.filter(g => inWeek(g.datum, wk)), w = gs.filter(g => g.uitslag === "W").length;
-    const bz = bijz.filter(b => b.speler === p.naam && b.team === p.team && inWeek(b.datum, wk));
-    return { p, gs, w, bz, lv: gs.reduce((a, g) => a + g.lw, 0), lt: gs.reduce((a, g) => a + g.lz, 0), score: w + bz.length };
-  }).filter(x => x.gs.length).sort((a, b) => b.score - a.score || b.w / b.gs.length - a.w / a.gs.length || (b.lv - b.lt) - (a.lv - a.lt));
-  const badges = x => x.bz.map(b => `<span class="badge">${is180(b) ? "180" : esc(b.prestatie.replace(" finish", "")) + " finish"}</span>`).join("");
+  // per speler de beste avond van de week (ma t/m vr): wie twee keer speelde, telt met de beste wedstrijd.
+  // punten: gewonnen partijen, plus 1 voor elk maximum (180, 177, 174, 171, 162) en elke finish van 100+; bij gelijkstand winst% en legsaldo
+  const kand = players.flatMap(p => [...new Set(p.games.filter(g => inWeek(g.datum, wk)).map(g => g.datum))].map(datum => {
+    const gs = p.games.filter(g => g.datum === datum), w = gs.filter(g => g.uitslag === "W").length;
+    const bz = bijz.filter(b => b.speler === p.naam && b.team === p.team && b.datum === datum && (aantalMax(b.prestatie) || isFin(b)));
+    return { p, datum, gs, w, bz, lv: gs.reduce((a, g) => a + g.lw, 0), lt: gs.reduce((a, g) => a + g.lz, 0), score: w + bz.reduce((a, b) => a + (aantalMax(b.prestatie) || 1), 0) };
+  })).sort((a, b) => b.score - a.score || b.w / b.gs.length - a.w / a.gs.length || (b.lv - b.lt) - (a.lv - a.lt))
+    .filter((x, i, a) => a.findIndex(y => y.p === x.p) === i);
+  const badges = x => x.bz.map(b => `<span class="badge">${esc(prestatieKort(b.prestatie))}${isFin(b) ? " finish" : ""}</span>`).join("");
   const [top, ...rest] = kand;
   $("spvw").innerHTML = top ? `<div class="spot"><div class="big">${who(top.p.naam, top.p.team)}</div><div class="sub">${esc(top.p.team)}</div>
-      <div class="spotnum"><b>${top.w}/${top.gs.length}</b> partijen gewonnen · legs ${top.lv}–${top.lt}</div>${badges(top)}</div>
-    <ol class="runners">${rest.slice(0, 3).map(x => `<li><span>${who(x.p.naam, x.p.team)} <span class="dim">· ${esc(x.p.team)}</span></span><span class="dim">${x.w}/${x.gs.length}${x.bz.length ? " · " + x.bz.map(b => is180(b) ? "180" : parseInt(b.prestatie, 10)).join(", ") : ""}</span></li>`).join("")}</ol>`
+      <div class="spotnum"><b>${top.w}/${top.gs.length}</b> partijen gewonnen · legs ${top.lv}–${top.lt} · ${dag(top.datum)}</div>${badges(top)}</div>
+    <ol class="runners">${rest.slice(0, 3).map(x => `<li><span>${who(x.p.naam, x.p.team)} <span class="dim">· ${esc(x.p.team)}</span></span><span class="dim">${x.w}/${x.gs.length}${x.bz.length ? " · " + x.bz.map(b => esc(prestatieKort(b.prestatie))).join(", ") : ""}</span></li>`).join("")}</ol>`
     : `<p class="empty">Geen partijen in deze week.</p>`;
   const wm = pl.filter(m => inWeek(m.datum, wk));
   const bestM = [...wm].sort((a, b) => (b.wij - b.zij) - (a.wij - a.zij))[0];
@@ -404,7 +406,7 @@ new ResizeObserver(drawVerloop).observe($("verloop"));
 
 // ---- mijlpalen ----
 const c180 = {};
-bijz.filter(is180).forEach(b => { const k = b.speler + "|" + b.team; c180[k] = (c180[k] || 0) + 1; });
+bijz.filter(is180).forEach(b => { const k = b.speler + "|" + b.team; c180[k] = (c180[k] || 0) + aantal180(b.prestatie); });
 const top180 = Object.entries(c180).sort(([a, x], [b, y]) => y - x || a.localeCompare(b));
 (function mijlpalen() {
   const M = [];

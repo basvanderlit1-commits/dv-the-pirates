@@ -4,6 +4,11 @@
 // kleuren waarmee teambeheer de stand markeert
 const ZONE = { kampioen: "kampioen, promoveert", promotie: "promoveert", nacompetitie: "nacompetitie", degradatie: "degradeert" };
 
+// bijzondere prestatie van teambeheer: "2x 180", "1x 171" of "153 finish"
+const aantal180 = p => Number((/^(\d+)x 180$/.exec(p) || [0, 0])[1]);
+const aantalMax = p => Number((/^(\d+)x \d+$/.exec(p) || [0, 0])[1]);  // maximum-categorie: 180, 177, 174, 171, 162
+const prestatieKort = p => p.replace(" finish", "").replace(/^1x /, "").replace(/^(\d+)x /, "$1× ");  // "2× 180", "171", "153"
+
 function zoneLegend(zones) {
   const has = new Set(zones);
   const items = Object.keys(ZONE).filter(z => has.has(z));

@@ -110,15 +110,16 @@ def parse_team(page, name):
         if len(td) < 5:
             continue
         a = td[4].find("a")
-        score = txt(a) if a else ""
+        # score staat in de link naar het formulier; een reglementaire uitslag ("5--5") heeft geen link
+        sc = re.search(r"(\d+)-(-?\d+)", txt(td[4]))
         home, away = txt(td[2]), txt(td[3])
-        res = ""
-        if score:
-            h, u = map(int, score.split("-"))
+        res, h, u = "", None, None
+        if sc:
+            h, u = map(int, sc.groups())
             mine, theirs = (h, u) if home == name else (u, h)
             res = "W" if mine > theirs else "V" if mine < theirs else "G"
         opp = (td[3] if home == name else td[2]).find("a")
-        ms.append(dict(ronde=txt(td[0]), datum=txt(td[1]), thuis=home, uit=away, score=score,
+        ms.append(dict(ronde=txt(td[0]), datum=txt(td[1]), thuis=home, uit=away, score=f"{h}-{u}" if sc else "", h=h, u=u,
                        uitslag=res, form=a["href"] if a else None,
                        tegen_id=re.search(r"t=(\d+)", opp["href"]).group(1) if opp else None,
                        vrij=not re.fullmatch(r"\d{2}-\d{2}-\d{4}", txt(td[1]))))  # bv. "Vrije week" in de beker
@@ -150,6 +151,12 @@ def game_type(o):
     if o.startswith("Koppel") or re.match(r"K \d", o):
         return "Koppel"
     return "Team"
+
+
+def n180(prestatie):
+    """Aantal 180's in een bijzondere prestatie van teambeheer ("2x 180"; ook "1x 171" en "153 finish" bestaan)."""
+    m = re.fullmatch(r"(\d+)x 180", prestatie)
+    return int(m.group(1)) if m else 0
 
 
 def to_date(s):
@@ -215,12 +222,12 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
                              prestatie=txt(item.select_one(".content")).replace(txt(item.select_one(".header")), "", 1).strip()))
     controle = []  # afwijkingen: de site wordt wel bijgewerkt, de beheerder krijgt een seintje
     for m in matches:  # controle: uitslag = som van de partijen, waarbij de round robin samen één punt is
-        if m["uitslag"]:
+        if m["uitslag"] and m["form"]:  # reglementair: geen formulier, dus niets om op te tellen
             gs = [g for g in games if g["ronde"] == m["ronde"]]
             rr = [g for g in gs if game_type(g["onderdeel"]) == "RR"]
             rw, rv = sum(g["legs_wij"] for g in rr), sum(g["legs_zij"] for g in rr)
             som = (sum(g["uitslag"] == "W" for g in gs if g not in rr) + (rw > rv), sum(g["uitslag"] == "V" for g in gs if g not in rr) + (rv > rw))
-            h, u = map(int, m["score"].split("-"))
+            h, u = m["h"], m["u"]
             if som != ((h, u) if m["thuis"] == TEAM else (u, h)):
                 controle.append(f"ronde {m['ronde']}: uitslag {m['score']} (thuis-uit), partijen tellen op tot {som[0]}-{som[1]} (wij-zij)")
     if onbekend :={g["onderdeel"] for g in games if game_type(g["onderdeel"]) == "Team" and not g["onderdeel"].startswith("Team")}:
@@ -282,7 +289,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
             uitslagen = []
             for x in o_ms:
                 if x["uitslag"]:
-                    h, u = map(int, x["score"].split("-"))
+                    h, u = x["h"], x["u"]
                     thuis = x["thuis"] == naam
                     uitslagen.append(dict(ronde=x["ronde"], datum=x["datum"], tegen=x["uit"] if thuis else x["thuis"],
                                           tu="Thuis" if thuis else "Uit", wij=h if thuis else u, zij=u if thuis else h, uitslag=x["uitslag"]))
@@ -303,8 +310,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
         thuis = m["thuis"] == TEAM
         m["tegen"], m["tu"] = (m["uit"], "Thuis") if thuis else (m["thuis"], "Uit")
         if m["score"]:
-            h, u = m["score"].split("-")
-            m["wijzij"] = f"{h} - {u}" if thuis else f"{u} - {h}"
+            m["wijzij"] = f"{m['h']} - {m['u']}" if thuis else f"{m['u']} - {m['h']}"
     role = lambda r: ", ".join(s["naam"] for s in spelers if s["rol"] == r) or "–"
     ours_only = lambda tab, col: [r for r in tab[1:] if len(r) > col and r[col] == TEAM]
     pk_count = lambda tab: sum(1 for r in tab[1:] if len(r) > 2)  # aantal spelers in het klassement
@@ -339,7 +345,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
                           "180's", "Finishes", "Winst % singles (site)", "Winst % koppels (site)"],
           [[s["naam"], s["rol"] or "Speler",
             *(agg[s["naam"]][k + x] for k in ("s", "k", "rr") for x in ("_gesp", "_w", "_lv", "_lt")),
-            sum("180" in b["prestatie"] for b in bijz if b["speler"] == s["naam"]),
+            sum(n180(b["prestatie"]) for b in bijz if b["speler"] == s["naam"]),
             ", ".join(b["prestatie"].replace(" finish", "") for b in bijz
                       if b["speler"] == s["naam"] and "finish" in b["prestatie"]) or None,
             s["site_singles_pct"] or None, s["site_koppels_pct"] or None] for s in spelers])
@@ -369,7 +375,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
         spelers=[dict(naam=s["naam"], rol=s["rol"] or "Speler",
                       **{k: [agg[s["naam"]][k + "_gesp"], agg[s["naam"]][k + "_w"], agg[s["naam"]][k + "_lv"],
                              agg[s["naam"]][k + "_lt"]] for k in ("s", "k", "rr")},
-                      n180=sum("180" in b["prestatie"] for b in bijz if b["speler"] == s["naam"]),
+                      n180=sum(n180(b["prestatie"]) for b in bijz if b["speler"] == s["naam"]),
                       finishes=[b["prestatie"].replace(" finish", "") for b in bijz
                                 if b["speler"] == s["naam"] and "finish" in b["prestatie"]]) for s in spelers],
         pk={label: [dict(pos=num(r[0]), naam=r[1], n=num(r[3]), w=won(r), pct=num(r[6]))
@@ -491,7 +497,7 @@ def archief_van(club):
         return max((x for x in f if isinstance(x, int)), default=None)
     return dict(seizoen=club["seizoen"], teams=[
         dict(naam=t["naam"], div=t["div"], pos=t.get("pos"), teams=t.get("teams"), pnt=t.get("pnt"), w=t.get("w"), v=t.get("v"),
-             n180=sum("180" in b["prestatie"] for b in t.get("bijz", [])), finish=finish(t)) for t in club["teams"]])
+             n180=sum(n180(b["prestatie"]) for b in t.get("bijz", [])), finish=finish(t)) for t in club["teams"]])
 
 
 def fold(line):

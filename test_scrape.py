@@ -75,4 +75,25 @@ namen = [dict(naam=n, singles=None, winst=None) for n in {p for g in games for p
 fout = s.controleer("The Pirates 2", [], games, namen, s.defaultdict(lambda: s.defaultdict(int)), [[]], {}, bijz, {"180ers": leeg, "171ers": leeg, "Hoogste finishes": leeg}, {})
 assert not [f for f in fout if "speelde" in f], fout
 
+# opstellingsplek en spannende partijen (4A, Pirates 7 uit bij Wheels & Arrows, 11-09): uit = letter van het koppel
+wed = dict(ronde="1", datum="11-09-2026", thuis="Wheels & Arrows", uit="Pirates 7")
+games, bijz, _ = s.parse_form(pagina("formulier-4a-uit.html"), wed, "Pirates 7")
+plekken = {(g["wij"], s.plek(g["onderdeel"], False)) for g in games if s.game_type(g["onderdeel"]) == "Koppel"}
+assert plekken == {("Jelle Derks, Bert Nolte", "Koppel 1"), ("Bas van der Lit, Bram van Vliet", "Koppel 2")}, plekken
+assert [s.plek(g["onderdeel"], False) for g in games if s.game_type(g["onderdeel"]) == "Single"] == [f"Single {i}" for i in range(1, 5)]
+assert sum(s.spannend(g) for g in games) == 6 and not any(s.spannend(g) for g in games if s.game_type(g["onderdeel"]) == "RR")
+# andere divisie ("Single 1* - A", "Koppel 1: 1* - A (501 bo 5)"): The Pirates 2 uit = letter, thuis = cijfer
+wed = dict(ronde="5", datum="06-10-2026", thuis="Breehoek the Force", uit="The Pirates 2")
+games, bijz, _ = s.parse_form(pagina("formulier-2x180.html"), wed, "The Pirates 2")
+k = {g["wij"]: s.plek(g["onderdeel"], False) for g in games if s.game_type(g["onderdeel"]) == "Koppel"}
+assert k == {"Egon Blom, Tommie Sloos": "Koppel 1", "Jasper van Vulpen, Alle Lenoir": "Koppel 2"}, k
+assert s.plek("Koppel 2: 2 - B* (501 bo 5)", True) == "Koppel 2" and s.plek("Koppel 3", False) == "Koppel 3"
+assert s.maximum("2x 180") == (180, 2) and s.maximum("1x 171") == (171, 1) and s.maximum("13 darter") is None
+
+# extra_stats mag niet crashen op het begin van het seizoen (lege stand, nog niets gespeeld)
+leeg = s.extra_stats("T", [dict(ronde="1", datum="01-09-2026", tegen="X", tu="Thuis", uitslag="", form=None, vrij=False)], [], [],
+                     [dict(pos="", team="T", wed="", w="", v="", pnt="", gem="", zone=""), dict(pos=1, team="X", wed=0, w=0, v=0, pnt=0, gem="", zone="")])
+assert leeg["prognose"]["rest"] == 1 and leeg["thuisuit"]["Thuis"]["avonden"] == 0 and leeg["plekken"] == [], leeg
+assert s.plek("Koppel A", True) is None and s.plek("Singel 3 T*: b.o. 3/501", False) == "Single 3"
+
 print("alle controles OK")

@@ -465,3 +465,23 @@ input.zoek:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   table.raster th:first-child, table.raster td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
 }
 @media (max-width: 760px) { #archief th:nth-child(7), #archief td:nth-child(7) { display: none; } } /* archief: finish alleen op de computer */
+
+/* extra statistieken (proef): uitklapblok onder Programma */
+details.extra > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; }
+details.extra > summary::-webkit-details-marker { display: none; }
+details.extra > summary h2 { margin: 0 0 2px; }
+details.extra > summary small { color: var(--muted); font-size: 13px; }
+details.extra[open] > summary { margin-bottom: 14px; }
+.extra-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.xs { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+.xs h3 { font: 400 19px/1.2 var(--title); margin: 0 0 4px; }
+.xs .note { margin: 0 0 12px; }
+.xs .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+.xs .duo > div { background: var(--sunken); border-radius: 8px; padding: 10px 12px; }
+.xs .big { font: 700 30px/1.1 var(--display); overflow-wrap: anywhere; }
+.xs .sub { font-size: 13px; color: var(--muted); }
+.xs ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.xs li { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-bottom: 1px dashed var(--line); padding-bottom: 5px; font-size: 14px; }
+details.extra > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 1000px) { .extra-body { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .xs .big { font-size: 24px; } .xs { padding: 12px; } }

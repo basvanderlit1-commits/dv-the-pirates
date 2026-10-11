@@ -35,6 +35,21 @@ wat de site zelf uitrekent.
   wedstrijd). Punten = gewonnen partijen + 1 per maximum + 1 per finish van 100+; gelijk: winst%, dan legsaldo.
 - **Ranglijst spelers**: winstpercentage, meedoen vanaf meer dan 25% van het hoogste aantal partijen; competitie + beker.
   Het persoonlijk klassement komt van teambeheer (alleen competitie).
+- **Extra statistieken** (proef, uitklapblok "Extra statistieken" onder Programma; `extra_stats` in `scrape.py`):
+  - *Punten per onderdeel*: partijen gewonnen per soort; wedstrijdpunten per avond met de RR samen 1 punt (meeste legs,
+    incl. RR Solo). Alleen avonden met formulier; incl. beker.
+  - *Opstellingsplek*: singles/koppels per plek. Formulier: thuisteam = cijfer, uitteam = letter (`Koppel 2 - B*`,
+    `K 1* - K A`, `Single 1* - A`, `Koppel 1: 1* - A (501 bo 5)`; het getal vóór de dubbele punt is een volgnummer).
+    Wij thuis = cijfer, uit = letter (A=1). Zonder letter (`Singel 1 T*`, beker `Koppel 3`) geldt het cijfer.
+  - *Spannende partijen*: beslist in de laatste leg (verschil 1 leg, winnaar minstens 2); RR telt niet mee.
+  - *Thuis/uit* en *top/onderkant*: W–V–G incl. reglementair; gemiddelde punten alleen over avonden met formulier.
+    Top = plek 1 t/m helft van de huidige stand; alleen competitie.
+  - *Prognose*: elk team trekt zijn huidige gemiddelde (stand van teambeheer) door over zijn resterende
+    competitiewedstrijden (totaal = aantal competitiewedstrijden in ons programma). Doel per zone = laatste team in die
+    zone; "nodig" = (hun verwachte eindstand − onze punten) / onze resterende avonden.
+  - *Breedte*: spelers met meer dan 25% van het hoogste aantal partijen (excl. Team) en hun winst%.
+  - *Maxima voor/tegen*: `Nx 180` = N 180's; andere `Nx ...` (171/174/177/162) als ander maximum; `NNN finish` als
+    finish. Snelste leg (`13 darter`) telt niet mee.
 
 ## Fouten voorkomen
 1. **Elke build vergelijkt met teambeheer** (`controleer` in `scrape.py`): stand, singles per speler, persoonlijk

@@ -289,7 +289,7 @@ const wk = lastDay && mon(lastDay);
       <div class="spotnum"><b>${top.w}/${top.gs.length}</b> partijen gewonnen · legs ${top.lv}–${top.lt} · ${dag(top.datum)}</div>${badges(top)}</div>
     <ol class="runners">${rest.slice(0, 3).map(x => `<li><span>${who(x.p.naam, x.p.team)} <span class="dim">· ${esc(x.p.team)}</span></span><span class="dim">${x.w}/${x.gs.length}${x.bz.length ? " · " + x.bz.map(b => esc(prestatieKort(b.prestatie))).join(", ") : ""}</span></li>`).join("")}</ol>`
     : `<p class="empty">Geen partijen in deze week.</p>`;
-  const wm = pl.filter(m => inWeek(m.datum, wk));
+  const wm = pl.filter(m => inWeek(m.datum, wk) && !m.regl);  // reglementair is geen gespeelde avond
   const bestM = [...wm].sort((a, b) => (b.wij - b.zij) - (a.wij - a.zij))[0];
   const close = wm.filter(m => m !== bestM).sort((a, b) => Math.abs(a.wij - a.zij) - Math.abs(b.wij - b.zij))[0];
   const card = (titel, m) => m ? `<div class="res"><div class="sub-h">${titel}</div><div class="resrow"><span class="resscore ${m.uitslag}">${m.wij}–${m.zij}</span>

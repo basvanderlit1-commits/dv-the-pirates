@@ -423,7 +423,8 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
         matches=[dict(ronde=m["ronde"], datum=m["datum"], tegen=m["tegen"], tu=m["tu"], uitslag=m["uitslag"], vrij=m["vrij"],
                       wij=int(m["wijzij"].split(" - ")[0]) if m["score"] else None,
                       zij=int(m["wijzij"].split(" - ")[1]) if m["score"] else None,
-                      locatie=m.get("locatie", ""), form=B + m["form"] if m["form"] else None)
+                      locatie=m.get("locatie", ""), form=B + m["form"] if m["form"] else None,
+                      regl=bool(m["uitslag"]) and not m["form"])  # reglementair (bv. "5--5"): uitslag zonder formulier
                  for m in matches],
         games=[dict(ronde=g["ronde"], type=kind(g["onderdeel"]), onderdeel=g["onderdeel"], wij=g["wij"], zij=g["zij"],
                     lw=g["legs_wij"], lz=g["legs_zij"], uitslag=g["uitslag"]) for g in games],
@@ -516,7 +517,7 @@ def summary(d, url):
     me = next((s for s in d["stand"] if s["team"] == d["team"]), {})
     return dict(naam=d["team"], url=url, div=d["div"], pos=me.get("pos"), teams=len(d["stand"]), pnt=me.get("pnt"),
                 gem=me.get("gem"), w=me.get("w"), v=me.get("v"), ntfy=d["ntfy"],
-                matches=[{k: m[k] for k in ("ronde", "datum", "tegen", "tu", "uitslag", "wij", "zij", "vrij", "locatie")}
+                matches=[{k: m[k] for k in ("ronde", "datum", "tegen", "tu", "uitslag", "wij", "zij", "vrij", "locatie", "regl")}
                          for m in d["matches"]],
                 bijz=d["bijz"], stand=d["stand"], tegenstanders=d["tegenstanders"], zone=me.get("zone", ""), ics=d["ics"], seizoen=d["seizoen"], controle=d["controle"], locatie=d["locatie"], spelers=[s["naam"] for s in d["spelers"]],
                 games=[[g["ronde"], g["type"], g["wij"], g["uitslag"], g["lw"], g["lz"]] for g in d["games"]])

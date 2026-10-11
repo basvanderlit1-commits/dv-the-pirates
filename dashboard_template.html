@@ -233,7 +233,7 @@ const TYPES = [["RR", "Round robin 301"], ["Single", "Singles"], ["Koppel", "Kop
 function matchHtml(m) {
   const rn = `<span class="rnd">${beker(m) ? "B" : esc(m.ronde)}</span>`;
   if (m.vrij) return `<details class="match todo bye"><summary tabindex="-1">${rn}<span class="opp"><b>Vrije week</b><small>${beker(m) ? "beker" : ""}</small></span><span></span><span></span><span></span></summary></details>`;
-  const sub = `<small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}</small>`;
+  const sub = `<small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}${m.regl ? " · reglementair" : ""}</small>`;
   const route = m.locatie ? ` · <a href="${maps(m.locatie)}" target="_blank" rel="noopener">route ↗</a>` : "";
   if (!m.uitslag) return `<details class="match todo"><summary tabindex="-1">${rn}<span class="opp"><b>${esc(m.tegen)}</b><small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}${toDate(m.datum) < today ? " · <span class=\"late\">nog geen uitslag</span>" : route}</small></span><span class="score dim">–</span><span></span><span class="chev">›</span></summary></details>`;
   const gs = D.games.filter(g => g.ronde === m.ronde);
@@ -334,7 +334,7 @@ new ResizeObserver(drawVerloop).observe($("verloop"));
   R.push(["Hoogste finish", fin ? fin.v : "–", fin ? `${fin.speler} · ${fin.datum}` : "nog geen finish van 100+"]);
   const m180 = [...D.spelers].sort((a, b) => b.n180 - a.n180)[0];
   R.push(["Meeste 180's", m180 && m180.n180 ? m180.n180 : "–", m180 && m180.n180 ? m180.naam : "nog geen 180"]);
-  const best = [...played].sort((a, b) => b.wij - a.wij || toDate(b.datum) - toDate(a.datum))[0];
+  const best = played.filter(m => !m.regl).sort((a, b) => b.wij - a.wij || toDate(b.datum) - toDate(a.datum))[0];
   if (best) R.push(["Beste avond", `${best.wij}–${best.zij}`, `tegen ${best.tegen}`]);
   let cur = 0, max = 0;
   played.forEach(m => { cur = m.uitslag === "W" ? cur + 1 : 0; max = Math.max(max, cur); });

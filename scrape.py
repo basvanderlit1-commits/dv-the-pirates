@@ -269,20 +269,15 @@ def parse_form(f, m, TEAM):
     return games, bijz, locatie
 
 
-def plek(onderdeel, thuis):
-    """Opstellingsplek van ons team voor een single of koppel, bv. "Koppel 2". Op het formulier staat het thuisteam
-    als cijfer en het uitteam als letter ("Koppel 2 - B*", "K 1* - K A", "Single 1* - A", "Koppel 1: 1* - A (501 bo 5)");
-    wij zijn thuis het cijfer en uit de letter (A=1). Zonder letter ("Singel 1 T*", beker "Koppel 3") geldt het cijfer
-    voor beide teams. Round robin en Team hebben geen plek."""
-    soort = game_type(onderdeel)
-    if soort not in ("Single", "Koppel"):
-        return None
-    o = onderdeel.split(":", 1)[1] if re.match(r"Koppel \d+:", onderdeel) else onderdeel  # "Koppel 1:" is het volgnummer
-    m = re.search(r"(\d+)\*?\s*-\s*(?:K\s*)?([A-H])\b", o)
-    d = re.match(r"\D*(\d+)", o)  # zonder letter: het eerste getal in de naam
-    if not (m or d):
-        return None  # onbekende notatie: liever geen plek dan een verkeerde
-    return f"{soort} {(int(m.group(1)) if thuis else ord(m.group(2)) - 64) if m else int(d.group(1))}"
+def plekken_van(gs):
+    """Plek = volgorde op het formulier: de 1e t/m 4e single en de 1e t/m 4e koppel van de avond (zoals de beker ze
+    nummert: Koppel 1-4). Bevestigd door de gebruiker. Geeft (plek, partij) voor elke single en koppel."""
+    nr = defaultdict(int)
+    for g in gs:
+        soort = game_type(g["onderdeel"])
+        if soort in ("Single", "Koppel"):
+            nr[soort] += 1
+            yield f"{soort} {nr[soort]}", g
 
 
 def spannend(g):
@@ -302,7 +297,6 @@ def extra_stats(TEAM, matches, games, bijz, stand):
     mee in partijen en gemiddelden; een reglementaire uitslag telt wel mee in winst/verlies. Zie README "Rekenregels"."""
     getal = lambda v: v if isinstance(v, (int, float)) else 0  # lege cel in de stand (begin seizoen) telt als 0
     stand = [dict(s, pos=getal(s["pos"]), wed=getal(s["wed"]), pnt=getal(s["pnt"])) for s in stand]
-    thuis = {m["ronde"]: m["tu"] == "Thuis" for m in matches}
     gespeeld = [m for m in matches if m["uitslag"] and m["form"]]
     per_avond = {m["ronde"]: [g for g in games if g["ronde"] == m["ronde"]] for m in gespeeld}
 
@@ -328,8 +322,8 @@ def extra_stats(TEAM, matches, games, bijz, stand):
 
     # 2. opstellingsplek
     plekken = defaultdict(lambda: dict(g=0, w=0, lv=0, lt=0))
-    for g in games:
-        if p := plek(g["onderdeel"], thuis.get(g["ronde"], True)):
+    for gs in per_avond.values():
+        for p, g in plekken_van(gs):
             x = plekken[p]
             x["g"] += 1
             x["w"] += g["uitslag"] == "W"

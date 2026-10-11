@@ -437,7 +437,7 @@ $("copyTopic").addEventListener("click", async e => {
     E.onderdelen.length ? tabel([["Onderdeel"], ["Partijen gewonnen"], ["Punten per avond", "n"]],
       E.onderdelen.map(o => `<tr><td><b>${o.label}</b></td><td>${bar([o.g, o.w])}</td><td class="n">${o.avonden ? `<b>${nl(o.punten / o.avonden)}</b> <span class="dim">van ${nl(o.mogelijk / o.avonden, 0)} · ${o.punten}/${o.mogelijk}</span>` : "–"}</td></tr>`)) : leeg("Nog geen partijen gespeeld.")));
 
-  B.push(blok(2, "Prestatie per opstellingsplek", "Singles en koppels per plek. Op het formulier staat ons team thuis als cijfer en uit als letter (A = 1, B = 2); zonder letter geldt het cijfer. Incl. beker.",
+  B.push(blok(2, "Prestatie per opstellingsplek", "Plek = volgorde op het wedstrijdformulier: de 1e t/m 4e single en de 1e t/m 4e koppelpartij van de avond. Alleen avonden met formulier; incl. beker.",
     E.plekken.length ? tabel([["Plek"], ["Gewonnen"], ["Legs", "n"]],
       E.plekken.map(p => `<tr><td><b>${p.plek}</b></td><td>${bar([p.g, p.w])}</td><td class="n">${p.lv}–${p.lt}</td></tr>`)) : leeg("Nog geen singles of koppels gespeeld.")));
 

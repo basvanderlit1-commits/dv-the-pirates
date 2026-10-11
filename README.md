@@ -38,9 +38,9 @@ wat de site zelf uitrekent.
 - **Extra statistieken** (proef, uitklapblok "Extra statistieken" onder Programma; `extra_stats` in `scrape.py`):
   - *Punten per onderdeel*: partijen gewonnen per soort; wedstrijdpunten per avond met de RR samen 1 punt (meeste legs,
     incl. RR Solo). Alleen avonden met formulier; incl. beker.
-  - *Opstellingsplek*: singles/koppels per plek. Formulier: thuisteam = cijfer, uitteam = letter (`Koppel 2 - B*`,
-    `K 1* - K A`, `Single 1* - A`, `Koppel 1: 1* - A (501 bo 5)`; het getal vóór de dubbele punt is een volgnummer).
-    Wij thuis = cijfer, uit = letter (A=1). Zonder letter (`Singel 1 T*`, beker `Koppel 3`) geldt het cijfer.
+  - *Opstellingsplek*: volgorde op het formulier, de 1e t/m 4e single en de 1e t/m 4e koppelpartij van de avond
+    (zoals de beker ze nummert). Dus `Koppel 1* - B` (4A) is Koppel 3, ook al speelt hetzelfde paar als bij Koppel 2.
+    Bevestigd door de gebruiker (okt 2026); eerst stond hier "paar-slot" (cijfer/letter), dat was fout.
   - *Spannende partijen*: beslist in de laatste leg (verschil 1 leg, winnaar minstens 2); RR telt niet mee.
   - *Thuis/uit* en *top/onderkant*: W–V–G incl. reglementair; gemiddelde punten alleen over avonden met formulier.
     Top = plek 1 t/m helft van de huidige stand; alleen competitie.

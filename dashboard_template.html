@@ -65,6 +65,11 @@
     </div>
   </div>
 
+  <section class="panel analyse" id="analyse" data-view="analyse">
+    <div class="ph"><h2>Analyse</h2><small>hoe het team ervoor staat · incl. beker, tenzij anders vermeld</small></div>
+    <div class="an-grid" id="anBody"></div>
+  </section>
+
   <section class="panel" data-view="spelers">
     <div class="ph"><h2>Spelers</h2><small>Tik op een speler voor het profiel</small></div>
     <div class="scroll spelers-table"><table id="spelers"></table></div>
@@ -95,10 +100,6 @@
     <div id="programma"></div>
   </section>
 
-  <details class="panel extra" data-view="programma" id="extra">
-    <summary><div><h2>Extra statistieken</h2><small>proefversie om te controleren</small></div><span class="chev" aria-hidden="true">›</span></summary>
-    <div class="extra-body" id="extraBody"></div>
-  </details>
 
   <div class="two">
     <section class="panel" data-view="overzicht">
@@ -128,6 +129,7 @@
 <nav class="bnav" aria-label="Onderdelen">
   <button data-go="overzicht"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg>Overzicht</button>
   <button data-go="stand"><svg viewBox="0 0 24 24"><path d="M4 20V11M10 20V5M16 20v-6M22 20H2"/></svg>Stand</button>
+  <button data-go="analyse"><svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M5 16l4-5 4 3 6-8"/><circle cx="19" cy="6" r="1.6"/></svg>Analyse</button>
   <button data-go="spelers"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M18.5 14.8c1.7.8 2.7 2.6 3 5.2"/></svg>Spelers</button>
   <button data-go="programma"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Programma</button>
 </nav>
@@ -421,72 +423,115 @@ $("copyTopic").addEventListener("click", async e => {
   setTimeout(() => { btn.textContent = "Kopiëren"; }, 2000);
 });
 
-// ---- extra statistieken (proef, uitklapblok onder Programma); berekend in scrape.py extra_stats ----
-(function extra() {
-  const E = D.extra;
-  if (!E) { $("extra").remove(); return; }
-  try {  // een fout hier mag de rest van het dashboard (menubalk, profielen) niet stoppen
-  const blok = (nr, titel, uitleg, inhoud) => `<section class="xs"><h3>${nr} · ${titel}</h3><p class="note">${uitleg}</p>${inhoud}</section>`;
+// ---- analyse (berekend in scrape.py analyse(); rekenregels in README) ----
+(function analyse() {
+  const A = D.analyse;
+  if (!A) { $("analyse").remove(); document.querySelector('nav.bnav [data-go="analyse"]')?.remove(); return; }
+  const blok = (titel, uitleg, inhoud, cls = "") => `<section class="xs ${cls}"><h3>${titel}</h3><p class="note">${uitleg}</p>${inhoud}</section>`;
   const tabel = (kop, rijen) => `<div class="scroll"><table><thead><tr>${kop.map(([t, c]) => `<th${c ? ` class="${c}"` : ""}>${t}</th>`).join("")}</tr></thead><tbody>${rijen.join("")}</tbody></table></div>`;
+  const kaart = (label, waarde, sub) => `<div><div class="sub">${label}</div><div class="big">${waarde}</div><div class="sub">${sub}</div></div>`;
   const wvg = x => `${x.w}–${x.v}${x.gl ? `–${x.gl}` : ""}`;
-  const duoKaart = (titel, x) => `<div><div class="sub">${titel}</div><div class="big">${wvg(x)}</div><div class="sub">${x.avonden ? `gem. ${nl(x.gem)} punten per avond · ${x.avonden} ${x.avonden === 1 ? "avond" : "avonden"}` : "nog geen gespeelde avond"}</div></div>`;
   const leeg = t => `<p class="empty">${t}</p>`;
+  const getal = (v, d = 1) => typeof v === "number" ? nl(v, d) : "–";
+  const veilig = (naam, maak) => { try { return maak(); } catch (e) { console.error("analyse", naam, e); return ""; } };  // één fout blok mag de rest niet stoppen
+  const ZN = { kampioen: "Kampioen", promotie: "Promotie", nacompetitie: "Nacompetitie" };
+  const ZKLEUR = { kampioen: "var(--win)", promotie: "#6CB4F0", nacompetitie: "#F0B45A" };
+  const P = A.prognose, M = A.maxima;
   const B = [];
 
-  B.push(blok(1, "Punten per onderdeel", "Partijen gewonnen per onderdeel, en wedstrijdpunten per avond. Round robin: het team met de meeste gewonnen legs (incl. RR Solo) krijgt 1 punt. Alleen avonden met wedstrijdformulier; incl. beker.",
-    E.onderdelen.length ? tabel([["Onderdeel"], ["Partijen gewonnen"], ["Punten per avond", "n"]],
-      E.onderdelen.map(o => `<tr><td><b>${o.label}</b></td><td>${bar([o.g, o.w])}</td><td class="n">${o.avonden ? `<b>${nl(o.punten / o.avonden)}</b> <span class="dim">van ${nl(o.mogelijk / o.avonden, 0)} · ${o.punten}/${o.mogelijk}</span>` : "–"}</td></tr>`)) : leeg("Nog geen partijen gespeeld.")));
+  // ---- prognose ----
+  B.push(veilig("prognose", () => {
+    const zonePlek = Object.fromEntries(D.stand.map(s => [s.pos, s.zone]));  // kleur hoort bij de plek, niet bij het team
+    const doel = d => {
+      const wat = d.ons ? `<span class="plus">nu binnen</span>` : d.nodig === null ? "–"
+        : !d.haalbaar ? `<span class="min">niet meer haalbaar</span>` : `<b>${nl(d.nodig)}</b> per avond`;
+      return `<li><span><span class="zone z-${d.zone}"></span>${ZN[d.zone]}<br><span class="dim">grens: ${esc(d.team)} (${d.pos}e), verwacht ${nl(d.eind, 0)}</span></span><span>${wat}</span></li>`;
+    };
+    const marge = P.degradatie ? P.eind - P.degradatie.eind : 0;
+    const doelen = P.doelen.length || P.degradatie
+      ? `<ul class="lst">${P.doelen.map(doel).join("")}${P.degradatie ? `<li><span><span class="zone z-degradatie"></span>Degradatie ontlopen<br><span class="dim">eerste degradatieplek: ${esc(P.degradatie.team)} (${P.degradatie.pos}e), verwacht ${nl(P.degradatie.eind, 0)}</span></span><span>marge <b class="${marge >= 0 ? "plus" : "min"}">${marge >= 0 ? "+" : ""}${nl(marge, 0)}</b></span></li>` : ""}</ul>`
+      : leeg("Teambeheer toont nog geen zones in de stand.");
+    const eind = tabel([["#", "n"], ["Team"], ["Nu", "n"], ["Verwacht", "n"]], P.eindstand.map(e =>
+      `<tr${e.team === D.team ? ` class="ours"` : ""}><td class="n"><span class="zone${zonePlek[e.nieuw] ? " z-" + zonePlek[e.nieuw] : ""}">${e.nieuw}</span></td><td>${esc(e.team)}</td><td class="n">${e.pnt} <span class="dim">${e.pos}e</span></td><td class="n"><b>${nl(e.eind, 0)}</b></td></tr>`));
+    return blok("Prognose eindstand", `Benadering: elk team speelt zijn huidige gemiddelde door tot het einde van de competitie (${P.totaal} wedstrijden). Alleen competitie.`,
+      `<div class="split"><div>
+        <div class="quad">${kaart("Verwacht", `± ${nl(P.eind, 0)}`, `punten (nu ${P.pnt})`)}${kaart("Verwachte plek", `${P.pos_eind}e`, `nu ${P.pos}e van ${P.eindstand.length}`)}${kaart("Nog te spelen", P.rest, `avonden · gem. nu ${getal(P.gem)}`)}${kaart("Maximaal", P.haalbaar, `punten bij ${P.per_avond_max} per avond`)}</div>
+        <div class="chart small" id="progChart"></div>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Onze punten</span><span>Stippellijn = verwacht verloop</span>${P.doelen.map(d => `<span><i style="background:${ZKLEUR[d.zone]}"></i>${ZN[d.zone]} (verwacht)</span>`).join("")}</div>
+        <h4 class="sub-h" style="margin-top:14px">Wat is er nodig?</h4>${doelen}
+      </div><div><h4 class="sub-h">Verwachte eindstand ${esc(D.div)}</h4>${eind}<p class="note" style="margin-top:8px">Kleur = zone die bij die plek hoort. Rechts: punten en plek van nu.</p></div></div>`, "wide");
+  }));
 
-  B.push(blok(2, "Prestatie per opstellingsplek", "Plek = volgorde op het wedstrijdformulier: de 1e t/m 4e single en de 1e t/m 4e koppelpartij van de avond. Alleen avonden met formulier; incl. beker.",
-    E.plekken.length ? tabel([["Plek"], ["Gewonnen"], ["Legs", "n"]],
-      E.plekken.map(p => `<tr><td><b>${p.plek}</b></td><td>${bar([p.g, p.w])}</td><td class="n">${p.lv}–${p.lt}</td></tr>`)) : leeg("Nog geen singles of koppels gespeeld.")));
+  // ---- punten per onderdeel ----
+  B.push(veilig("onderdelen", () => blok("Punten per onderdeel", "Partijen gewonnen per onderdeel en wedstrijdpunten per avond. Round robin: het team met de meeste gewonnen legs (incl. RR Solo) krijgt 1 punt. Alleen avonden met wedstrijdformulier.",
+    A.onderdelen.length ? tabel([["Onderdeel"], ["Partijen gewonnen"], ["Punten per avond", "n"]],
+      A.onderdelen.map(o => `<tr><td><b>${o.label}</b></td><td>${bar([o.g, o.w])}</td><td class="n">${o.avonden ? `<b>${nl(o.punten / o.avonden)}</b> <span class="dim">van ${nl(o.mogelijk / o.avonden, 0)} · ${o.punten}/${o.mogelijk}</span>` : "–"}</td></tr>`))
+      : leeg("Nog geen partijen gespeeld."))));
 
-  const S = E.spannend;
-  B.push(blok(3, "Spannende partijen", "Partijen die in de laatste leg beslist werden (2–1, 3–2). Round robin is één leg en telt niet mee. Incl. beker.",
-    S.g ? `<div class="duo"><div><div class="sub">Gewonnen in de laatste leg</div><div class="big">${S.w} van ${S.g}</div><div class="sub">${pct(S.w, S.g)}% gewonnen</div></div>
-      <div><div class="sub">Naar de laatste leg</div><div class="big">${pct(S.g, S.van)}%</div><div class="sub">${S.g} van ${S.van} partijen (zonder RR)</div></div></div>` +
-      tabel([["Onderdeel"], ["Gewonnen"]], Object.entries(S.per_soort).map(([k, [g, w]]) => `<tr><td>${{ Single: "Singles", Koppel: "Koppels", Team: "Team (beker)" }[k]}</td><td>${bar([g, w])}</td></tr>`))
-      : leeg("Nog geen partij in de laatste leg beslist.")));
+  // ---- spannende partijen ----
+  B.push(veilig("spannend", () => {
+    const S = A.spannend;
+    return blok("Spannende partijen", "Partijen die in de laatste leg beslist werden (2–1, 3–2). Round robin is één leg en telt niet mee.",
+      S.g ? `<div class="duo">${kaart("Gewonnen in de laatste leg", `${S.w} van ${S.g}`, `${pct(S.w, S.g)}% gewonnen`)}${kaart("Naar de laatste leg", `${pct(S.g, S.van)}%`, `${S.g} van ${S.van} partijen (zonder RR)`)}</div>` +
+        tabel([["Onderdeel"], ["Gewonnen"]], Object.entries(S.per_soort).map(([k, [g, w]]) => `<tr><td>${{ Single: "Singles", Koppel: "Koppels", Team: "Team (beker)" }[k]}</td><td>${bar([g, w])}</td></tr>`))
+        : leeg("Nog geen partij in de laatste leg beslist."));
+  }));
 
-  B.push(blok(4, "Thuis tegen uit", "Winst–verlies(–gelijk) inclusief reglementaire uitslagen; het gemiddelde alleen over echt gespeelde avonden. Incl. beker.",
-    `<div class="duo">${duoKaart("Thuis", E.thuisuit.Thuis)}${duoKaart("Uit", E.thuisuit.Uit)}</div>`));
+  // ---- thuis tegen uit ----
+  B.push(veilig("thuisuit", () => {
+    const tu = (titel, x) => kaart(titel, wvg(x), x.avonden ? `gem. ${nl(x.gem)} punten per avond · ${x.avonden} ${x.avonden === 1 ? "avond" : "avonden"}` : "nog geen gespeelde avond");
+    return blok("Thuis tegen uit", "Winst–verlies(–gelijk) inclusief reglementaire uitslagen; het gemiddelde alleen over echt gespeelde avonden.",
+      `<div class="duo">${tu("Thuis", A.thuisuit.Thuis)}${tu("Uit", A.thuisuit.Uit)}</div>`);
+  }));
 
-  const T = E.topbodem;
-  B.push(blok(5, "Tegen de top en de onderkant", `Tegenstanders verdeeld naar hun plek in de huidige stand: 1–${T.grens} en ${T.grens + 1}–${T.teams}. Alleen competitie.`,
-    `<div class="duo">${duoKaart(`Tegen nr. 1–${T.grens}`, T.top)}${duoKaart(`Tegen nr. ${T.grens + 1}–${T.teams}`, T.onder)}</div>`));
-
-  const P = E.prognose, ZN = { kampioen: "Kampioen", promotie: "Promotie", nacompetitie: "Nacompetitie" };
-  const doel = d => {
-    const wat = d.ons ? `<span class="plus">nu binnen</span>` : d.nodig === null ? "–" : d.nodig > 9 ? `<span class="min">niet meer haalbaar</span>` : `nodig: <b>${nl(d.nodig)}</b> per avond`;
-    return `<li><span>${ZN[d.zone]} <span class="dim">(nu ${esc(d.team)}, ${d.pos}e, verwacht ${nl(d.eind)})</span></span><span>${wat}</span></li>`;
-  };
-  B.push(blok(7, "Prognose eindstand", "Benadering: elk team speelt zijn huidige gemiddelde door tot het einde van de competitie. Zones zoals teambeheer ze kleurt.",
-    `<div class="duo"><div><div class="sub">Verwachte eindstand</div><div class="big">± ${nl(P.eind, 0)}</div><div class="sub">punten (nu ${P.pnt} na ${P.gespeeld} van ${P.totaal})</div></div>
-      <div><div class="sub">Nog te spelen</div><div class="big">${P.rest}</div><div class="sub">avonden · gem. nu ${typeof P.gem === "number" ? nl(P.gem) : "–"}</div></div></div>` +
-    (P.doelen.length || P.degradatie ? `<ul>${P.doelen.map(doel).join("")}${P.degradatie ? `<li><span>Eerste degradatieplek <span class="dim">(nu ${esc(P.degradatie.team)}, ${P.degradatie.pos}e, verwacht ${nl(P.degradatie.eind)})</span></span><span>marge: <b class="${P.eind - P.degradatie.eind >= 0 ? "plus" : "min"}">${P.eind - P.degradatie.eind >= 0 ? "+" : ""}${nl(P.eind - P.degradatie.eind)}</b></span></li>` : ""}</ul>` : leeg("Teambeheer toont nog geen zones in de stand."))));
-
-  const BR = E.breedte, boven = BR.spelers.filter(x => x.pct >= 50);
-  B.push(blok(10, "Breedte van het team", `Spelers met minstens ${BR.drempel} partijen (meer dan 25% van het hoogste aantal, zoals de clubranglijst); alle partijen behalve Team, incl. beker.`,
-    BR.spelers.length ? `<div class="big">${boven.length} van ${BR.spelers.length}</div><div class="sub" style="margin-bottom:10px">spelers op 50% of meer</div>
-      <ul>${BR.spelers.map(x => `<li><span>${esc(x.naam)}</span><span><b class="${x.pct >= 50 ? "plus" : ""}">${x.pct}%</b> <span class="dim">${x.w}/${x.g}</span></span></li>`).join("")}</ul>` : leeg("Nog geen partijen gespeeld.")));
-
-  const M = E.maxima, fin = x => x.finish ? `${x.finish}× <span class="dim">(hoogste ${x.hoogste})</span>` : "–";
-  const kort = x => [x.n180 && `${x.n180}× 180`, x.max_overig && `${x.max_overig}× ander max.`, x.finish && `${x.finish} finish (${x.hoogste})`].filter(Boolean).join(", ") || "–";
-  B.push(blok(11, "Maxima voor en tegen", "Zoals teambeheer ze op het formulier noteert. Andere maxima = 171, 174, 177, 162; finishes vanaf 100. Snelste legs (bv. \"13 darter\") tellen hier niet mee.",
-    tabel([["Soort"], ["Wij", "n"], ["Tegenstanders", "n"]], [
+  // ---- maxima voor en tegen ----
+  B.push(veilig("maxima", () => {
+    const fin = x => x.finish ? `${x.finish}×` : "–";
+    const wat = r => [r.n180 && `${r.n180}× 180`, r.max_overig && `${r.max_overig}× ander max.`, r.finishes.length && `finish ${r.finishes.join(", ")}`, r.snelste && `${r.snelste}-darter`].filter(Boolean).join(" · ") || "–";
+    const lijst = (rijen, metTeam) => rijen.length ? `<ul class="lst">${rijen.map(r => `<li><span><b>${esc(r.naam)}</b>${metTeam ? `<br><span class="dim">${esc(r.team)}</span>` : ""}</span><span>${esc(wat(r))}</span></li>`).join("")}</ul>` : leeg("Nog niets.");
+    const per = M.avonden ? (n => nl(n / M.avonden, 2)) : (() => "–");
+    const samen = tabel([["Soort"], [esc(D.team), "n"], ["Tegenstanders", "n"]], [
       `<tr><td>180's</td><td class="n"><b>${M.wij.n180}</b></td><td class="n">${M.zij.n180}</td></tr>`,
+      `<tr><td>180's per avond</td><td class="n">${per(M.wij.n180)}</td><td class="n">${per(M.zij.n180)}</td></tr>`,
       `<tr><td>Andere maxima</td><td class="n"><b>${M.wij.max_overig}</b></td><td class="n">${M.zij.max_overig}</td></tr>`,
-      `<tr><td>Finishes 100+</td><td class="n"><b>${fin(M.wij)}</b></td><td class="n">${fin(M.zij)}</td></tr>`]) +
-    `<h4 class="sub-h" style="margin-top:12px">Per avond</h4><ul>${[...M.per_avond].reverse().map(a => `<li><span>${beker(a) ? "Beker" : "R" + esc(a.ronde)} · ${esc(a.datum.slice(0, 5))} · ${esc(a.tegen)}</span><span class="dim">wij: ${kort(a.wij)} · zij: ${kort(a.zij)}</span></li>`).join("")}</ul>`));
+      `<tr><td>Finishes 100+</td><td class="n"><b>${fin(M.wij)}</b></td><td class="n">${fin(M.zij)}</td></tr>`,
+      `<tr><td>Hoogste finish</td><td class="n"><b>${M.wij.hoogste ?? "–"}</b></td><td class="n">${M.zij.hoogste ?? "–"}</td></tr>`,
+      `<tr><td>Snelste leg</td><td class="n"><b>${M.wij.snelste ? M.wij.snelste + " darts" : "–"}</b></td><td class="n">${M.zij.snelste ? M.zij.snelste + " darts" : "–"}</td></tr>`]);
+    const avond = a => `<li><span>${beker(a) ? "Beker" : "R" + esc(a.ronde)} · ${esc(a.datum.slice(0, 5))} · ${esc(a.tegen)}</span><span class="dim">wij: ${esc(wat(a.wij))} · zij: ${esc(wat(a.zij))}</span></li>`;
+    return blok("Maxima en finishes, voor en tegen", `Zoals teambeheer ze op het formulier noteert, over ${M.avonden} gespeelde ${M.avonden === 1 ? "avond" : "avonden"}. Andere maxima = 171, 174, 177, 162; finishes vanaf 100; snelste leg = "13 darter" enz.`,
+      `<div class="split"><div>${samen}</div><div class="split2"><div><h4 class="sub-h">Bij ${esc(D.team)}</h4>${lijst(M.spelers_wij, false)}</div><div><h4 class="sub-h">Tegen ons</h4>${lijst(M.spelers_zij, true)}</div></div></div>
+       <details class="peravond"><summary>Per avond <span class="chev" aria-hidden="true">›</span></summary><ul class="lst">${[...M.per_avond].reverse().map(avond).join("")}</ul></details>`, "wide");
+  }));
 
-  $("extraBody").innerHTML = B.join("");
-  } catch (e) { console.error("extra statistieken", e); $("extra").remove(); }
+  $("anBody").innerHTML = B.join("");
+
+  // grafiek: onze punten per competitiewedstrijd, verwacht verloop en de verwachte grens van elke zone
+  function drawProg() {
+    const el = $("progChart");
+    if (!el || !el.clientWidth) return;
+    const W = el.clientWidth, H = 200, L = 34, R = 12, T = 12, Bm = 26, n = Math.max(P.totaal, P.reeks.length, 1);
+    const pts = [{ i: 0, v: 0 }, ...P.reeks.map((r, k) => ({ i: k + 1, v: r.pnt }))];
+    const laatste = pts[pts.length - 1];
+    const waarden = [P.eind, ...P.doelen.map(d => d.eind), ...pts.map(p => p.v)].filter(Number.isFinite);
+    const ymax = Math.max(10, ...waarden) * 1.08, stap = Math.max(10, Math.ceil(ymax / 4 / 10) * 10);
+    const ymin = Math.min(0, Math.floor(Math.min(...waarden) / stap) * stap);
+    const x = i => L + (W - L - R) * i / n, y = v => T + (H - T - Bm) * (1 - (v - ymin) / (ymax - ymin));
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Punten en verwacht verloop">`;
+    for (let v = ymin; v <= ymax; v += stap) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+    P.doelen.forEach(d => { s += `<line x1="${L}" x2="${W - R}" y1="${y(d.eind)}" y2="${y(d.eind)}" stroke="${ZKLEUR[d.zone]}" stroke-dasharray="2 4" opacity=".9"><title>${ZN[d.zone]}: verwacht ${nl(d.eind, 0)}</title></line>`; });
+    s += `<line x1="${x(laatste.i)}" y1="${y(laatste.v)}" x2="${x(n)}" y2="${y(P.eind)}" stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 5" opacity=".8"/>`;
+    s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" points="${pts.map(p => `${x(p.i)},${y(p.v)}`).join(" ")}"/>`;
+    s += `<circle cx="${x(laatste.i)}" cy="${y(laatste.v)}" r="4" fill="var(--accent)"/><circle cx="${x(n)}" cy="${y(P.eind)}" r="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="2"><title>Verwacht: ${nl(P.eind, 0)}</title></circle>`;
+    for (const i of new Set([0, Math.round(n / 2), n])) s += `<text x="${x(i)}" y="${H - 8}" text-anchor="${i === 0 ? "start" : i === n ? "end" : "middle"}">${i === 0 ? "start" : "na " + i}</text>`;
+    el.innerHTML = s + "</svg>";
+  }
+  if ($("progChart")) new ResizeObserver(drawProg).observe($("progChart"));
 })();
 
 // ---- telefoon: tabbladen onderin (onthouden via #hash) ----
-const VIEWS = ["overzicht", "stand", "spelers", "programma"];
+const VIEWS = ["overzicht", "stand", "analyse", "spelers", "programma"];
 function go(v, scroll) {
-  if (!VIEWS.includes(v)) v = "overzicht";
+  if (!VIEWS.includes(v) || !document.querySelector(`main [data-view~="${v}"]`)) v = "overzicht";
   document.body.dataset.v = v;
   document.querySelectorAll("nav.bnav button").forEach(b => {
     if (b.dataset.go === v) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");

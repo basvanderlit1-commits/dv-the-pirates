@@ -279,6 +279,7 @@ nav.bnav { display: none; }
   body[data-v="overzicht"] [data-view~="overzicht"],
   body[data-v="stand"] [data-view~="stand"],
   body[data-v="spelers"] [data-view~="spelers"],
+  body[data-v="analyse"] [data-view~="analyse"],
   body[data-v="programma"] [data-view~="programma"],
   body[data-v="teams"] [data-view~="teams"],
   body[data-v="week"] [data-view~="week"],
@@ -466,22 +467,35 @@ input.zoek:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 }
 @media (max-width: 760px) { #archief th:nth-child(7), #archief td:nth-child(7) { display: none; } } /* archief: finish alleen op de computer */
 
-/* extra statistieken (proef): uitklapblok onder Programma */
-details.extra > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; }
-details.extra > summary::-webkit-details-marker { display: none; }
-details.extra > summary h2 { margin: 0 0 2px; }
-details.extra > summary small { color: var(--muted); font-size: 13px; }
-details.extra[open] > summary { margin-bottom: 14px; }
-.extra-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+/* analyse: vast scherm (telefoon: tab Analyse; pc: sectie onder de stand) */
+.an-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .xs { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
-.xs h3 { font: 400 19px/1.2 var(--title); margin: 0 0 4px; }
+.xs.wide { grid-column: 1 / -1; }
+.xs h3 { font: 400 20px/1.2 var(--title); margin: 0 0 4px; }
 .xs .note { margin: 0 0 12px; }
 .xs .duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
-.xs .duo > div { background: var(--sunken); border-radius: 8px; padding: 10px 12px; }
+.xs .quad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.xs .duo > div, .xs .quad > div { background: var(--sunken); border-radius: 8px; padding: 10px 12px; min-width: 0; }
 .xs .big { font: 700 30px/1.1 var(--display); overflow-wrap: anywhere; }
 .xs .sub { font-size: 13px; color: var(--muted); }
-.xs ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.xs li { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-bottom: 1px dashed var(--line); padding-bottom: 5px; font-size: 14px; }
-details.extra > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-@media (max-width: 1000px) { .extra-body { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .xs .big { font-size: 24px; } .xs { padding: 12px; } }
+.xs .split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.xs .split2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.xs .lst { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.xs .lst li { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; border-bottom: 1px dashed var(--line); padding-bottom: 6px; font-size: 14px; }
+.xs .lst li > span:last-child { text-align: right; }
+.xs .lst .zone { min-width: 10px; height: 10px; padding: 0; margin-right: 6px; vertical-align: 0; }
+.xs .lst .zone.z-kampioen { background: var(--win); } .xs .lst .zone.z-promotie { background: #6CB4F0; }
+.xs .lst .zone.z-nacompetitie { background: #F0B45A; } .xs .lst .zone.z-degradatie { background: var(--loss); }
+.xs details.peravond { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.xs details.peravond > summary { list-style: none; cursor: pointer; font: 600 12px var(--body); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.xs details.peravond > summary::-webkit-details-marker { display: none; }
+.xs details.peravond[open] > summary { margin-bottom: 8px; }
+.xs details.peravond > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 1100px) { .an-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .xs .quad { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .xs .split { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .an-grid { grid-template-columns: 1fr; gap: 12px; }
+  .xs { padding: 12px; }
+  .xs .big { font-size: 24px; }
+  .xs .split2 { grid-template-columns: 1fr; }
+}

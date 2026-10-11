@@ -229,7 +229,7 @@ def controleer(TEAM, matches, games, spelers, agg, stand, pk, bijz, bijz_lists, 
                 if len(gs) != num(r[3]) or abs(100 * sum(g["uitslag"] == "W" for g in gs) / max(len(gs), 1) - num(r[6])) > 1:
                     fout.append(f"{r[1]}: klassement {soort.lower()}s {r[3]} gespeeld {r[6]}%, wij {sum(g['uitslag'] == 'W' for g in gs)}/{len(gs)}")
     # 180's, 171's en hoogste finish per speler (competitie) = lijsten van teambeheer
-    if onbekend := {b["prestatie"] for b in bijz if not re.fullmatch(r"\d+x \d+|\d+ finish", b["prestatie"])}:
+    if onbekend := {b["prestatie"] for b in bijz if not re.fullmatch(r"\d+x \d+|\d+ finish|\d+ darter", b["prestatie"])}:
         fout.append("onbekende bijzondere prestaties: " + ", ".join(sorted(onbekend)))
     bz = [b for b in bijz if not beker(b["ronde"])]
     for lijst, waarde in (("180ers", lambda p: n180(p)), ("171ers", lambda p: int(m[1]) if (m := re.fullmatch(r"(\d+)x 171", p)) else 0),
@@ -269,17 +269,6 @@ def parse_form(f, m, TEAM):
     return games, bijz, locatie
 
 
-def plekken_van(gs):
-    """Plek = volgorde op het formulier: de 1e t/m 4e single en de 1e t/m 4e koppel van de avond (zoals de beker ze
-    nummert: Koppel 1-4). Bevestigd door de gebruiker. Geeft (plek, partij) voor elke single en koppel."""
-    nr = defaultdict(int)
-    for g in gs:
-        soort = game_type(g["onderdeel"])
-        if soort in ("Single", "Koppel"):
-            nr[soort] += 1
-            yield f"{soort} {nr[soort]}", g
-
-
 def spannend(g):
     """Partij beslist in de laatste leg (2-1, 3-2, ...). Round robin is één leg en telt dus niet mee."""
     hoog, laag = max(g["legs_wij"], g["legs_zij"]), min(g["legs_wij"], g["legs_zij"])
@@ -292,13 +281,26 @@ def maximum(prestatie):
     return (int(m.group(2)), int(m.group(1))) if m else None
 
 
-def extra_stats(TEAM, matches, games, bijz, stand):
-    """Extra teamstatistieken (proef, uitklapblok onder Programma). Alleen echt gespeelde avonden met formulier tellen
-    mee in partijen en gemiddelden; een reglementaire uitslag telt wel mee in winst/verlies. Zie README "Rekenregels"."""
+def bijz_tel(bs):
+    """Maxima, finishes en snelste leg uit bijzondere prestaties zoals teambeheer ze noteert:
+    "2x 180" (twee 180's), "1x 171" (ander maximum: 162/171/174/177), "123 finish", "13 darter" (leg in 13 pijlen)."""
+    mx = [maximum(b["prestatie"]) for b in bs]
+    fin = [int(b["prestatie"].split()[0]) for b in bs if re.fullmatch(r"\d+ finish", b["prestatie"])]
+    dart = [int(b["prestatie"].split()[0]) for b in bs if re.fullmatch(r"\d+ darter", b["prestatie"])]
+    return dict(n180=sum(n for s, n in filter(None, mx) if s == 180),
+                max_overig=sum(n for s, n in filter(None, mx) if s in (162, 171, 174, 177)),
+                finish=len(fin), finishes=sorted(fin, reverse=True), hoogste=max(fin, default=None), snelste=min(dart, default=None))
+
+
+def analyse(TEAM, matches, games, bijz, stand):
+    """Teamanalyse (scherm "Analyse"): punten per onderdeel, spannende partijen, thuis/uit, prognose en maxima.
+    Alleen echt gespeelde avonden met formulier tellen mee in partijen en gemiddelden; een reglementaire uitslag telt
+    wel mee in winst/verlies en in de punten. Rekenregels: README "Rekenregels" > "Analyse"."""
     getal = lambda v: v if isinstance(v, (int, float)) else 0  # lege cel in de stand (begin seizoen) telt als 0
     stand = [dict(s, pos=getal(s["pos"]), wed=getal(s["wed"]), pnt=getal(s["pnt"])) for s in stand]
     gespeeld = [m for m in matches if m["uitslag"] and m["form"]]
     per_avond = {m["ronde"]: [g for g in games if g["ronde"] == m["ronde"]] for m in gespeeld}
+    wij = lambda m: m["h"] if m["thuis"] == TEAM else m["u"]  # onze punten van de avond, zoals teambeheer ze geeft
 
     def punten(gs):  # wedstrijdpunten van één avond per onderdeel; round robin samen één punt (meeste legs)
         p = defaultdict(int)
@@ -320,16 +322,6 @@ def extra_stats(TEAM, matches, games, bijz, stand):
             onderdelen.append(dict(soort=soort, label=label, g=len(gs), w=sum(g["uitslag"] == "W" for g in gs),
                                    avonden=len(avonden), punten=sum(punten(per_avond[r])[soort] for r in avonden), mogelijk=mogelijk))
 
-    # 2. opstellingsplek
-    plekken = defaultdict(lambda: dict(g=0, w=0, lv=0, lt=0))
-    for gs in per_avond.values():
-        for p, g in plekken_van(gs):
-            x = plekken[p]
-            x["g"] += 1
-            x["w"] += g["uitslag"] == "W"
-            x["lv"] += g["legs_wij"]
-            x["lt"] += g["legs_zij"]
-
     # 3. spannende partijen
     sp = [g for g in games if spannend(g)]
     spannend_ = dict(g=len(sp), w=sum(g["uitslag"] == "W" for g in sp), van=sum(game_type(g["onderdeel"]) != "RR" for g in games),
@@ -338,64 +330,62 @@ def extra_stats(TEAM, matches, games, bijz, stand):
                                 for s in ("Single", "Koppel", "Team") if any(game_type(g["onderdeel"]) == s for g in sp)})
 
     def samenvatting(ms):  # winst/verlies incl. reglementair, gemiddelde punten alleen over gespeelde avonden
-        echt = [m for m in ms if m["form"] and m.get("wijzij")]
+        echt = [m for m in ms if m["form"] and m["h"] is not None]
         return dict(w=sum(m["uitslag"] == "W" for m in ms), v=sum(m["uitslag"] == "V" for m in ms),
                     gl=sum(m["uitslag"] == "G" for m in ms), avonden=len(echt),
-                    gem=round(sum(int(m["wijzij"].split(" - ")[0]) for m in echt) / len(echt), 2) if echt else None)
+                    gem=round(sum(wij(m) for m in echt) / len(echt), 2) if echt else None)
 
     # 4. thuis tegen uit (incl. beker)
-    uitslagen = [m for m in matches if m["uitslag"]]
+    uitslagen = [m for m in matches if m["uitslag"] and not m["vrij"]]
     thuisuit = {tu: samenvatting([m for m in uitslagen if m["tu"] == tu]) for tu in ("Thuis", "Uit")}
 
-    # 5. tegen de bovenste en onderste helft van de huidige stand (alleen competitie)
-    pos = {s["team"]: s["pos"] for s in stand}
-    grens = len(stand) // 2
-    comp = [m for m in uitslagen if not m["ronde"].startswith("b") and m["tegen"] in pos]
-    topbodem = dict(grens=grens, teams=len(stand),
-                    top=samenvatting([m for m in comp if pos[m["tegen"]] <= grens]),
-                    onder=samenvatting([m for m in comp if pos[m["tegen"]] > grens]))
-
-    # 7. prognose: huidig gemiddelde doortrekken (competitie); doelen = laatste team in elke betere zone
+    # 7. prognose: elk team trekt zijn huidige gemiddelde door over zijn resterende competitiewedstrijden
     me = next(s for s in stand if s["team"] == TEAM)
     totaal = sum(1 for m in matches if not m["ronde"].startswith("b") and not m["vrij"])
     rest = lambda s: max(totaal - s["wed"], 0)
     eind = lambda s: s["pnt"] + (s["gem"] * rest(s) if isinstance(s["gem"], (int, float)) else 0)
+    # hoogste aantal punten op één avond (uit de echte uitslagen; 9 in alle Pirates-divisies)
+    per_avond_max = max((m["h"] + m["u"] for m in uitslagen if m["form"] and m["h"] is not None and not m["ronde"].startswith("b")), default=9)
+    haalbaar = me["pnt"] + per_avond_max * rest(me)
+    verwacht = sorted(stand, key=lambda s: (-round(eind(s), 1), s["pos"]))  # gelijk verwacht: plek van nu beslist
+    eindstand = [dict(team=s["team"], pos=s["pos"], pnt=s["pnt"], wed=s["wed"], eind=round(eind(s), 1), zone=s["zone"],
+                      nieuw=i + 1) for i, s in enumerate(verwacht)]
     doelen = []
     for zone in ("kampioen", "promotie", "nacompetitie"):
         inzone = [s for s in stand if s["zone"] == zone]
         if inzone:
             t = max(inzone, key=lambda s: s["pos"])
-            doelen.append(dict(zone=zone, team=t["team"], pos=t["pos"], eind=round(eind(t), 1), ons=t["team"] == TEAM or 0 < me["pos"] <= t["pos"],
+            doelen.append(dict(zone=zone, team=t["team"], pos=t["pos"], eind=round(eind(t), 1),
+                               ons=t["team"] == TEAM or 0 < me["pos"] <= t["pos"], haalbaar=eind(t) <= haalbaar,
                                nodig=round((eind(t) - me["pnt"]) / rest(me), 2) if rest(me) else None))
     degr = [s for s in stand if s["zone"] == "degradatie"]
     veilig = min(degr, key=lambda s: s["pos"]) if degr else None
+    comp = sorted([m for m in uitslagen if not m["ronde"].startswith("b") and m["h"] is not None], key=lambda m: to_date(m["datum"]))
+    reeks, som = [], 0
+    for m in comp:  # onze punten na elke competitiewedstrijd (voor de grafiek)
+        som += wij(m)
+        reeks.append(dict(ronde=m["ronde"], datum=m["datum"], pnt=som))
     prognose = dict(totaal=totaal, gespeeld=me["wed"], rest=rest(me), pnt=me["pnt"], gem=me["gem"], eind=round(eind(me), 1),
-                    doelen=doelen, degradatie=dict(team=veilig["team"], pos=veilig["pos"], eind=round(eind(veilig), 1)) if veilig else None)
+                    pos=me["pos"], pos_eind=next(e["nieuw"] for e in eindstand if e["team"] == TEAM), haalbaar=haalbaar,
+                    per_avond_max=per_avond_max, doelen=doelen, eindstand=eindstand, reeks=reeks,
+                    degradatie=dict(team=veilig["team"], pos=veilig["pos"], eind=round(eind(veilig), 1)) if veilig else None)
 
-    # 10. breedte: spelers met genoeg partijen (meer dan 25% van het hoogste aantal, zoals de clubranglijst) en hun winst%
-    pp = defaultdict(lambda: [0, 0])
-    for g in games:
-        if game_type(g["onderdeel"]) != "Team":
-            for p in g["wij"].split(", "):
-                pp[p][0] += 1
-                pp[p][1] += g["uitslag"] == "W"
-    drempel = max((x[0] for x in pp.values()), default=0) // 4 + 1
-    breedte = dict(drempel=drempel, spelers=sorted([dict(naam=n, g=g, w=w, pct=round(100 * w / g)) for n, (g, w) in pp.items() if g >= drempel],
-                                                   key=lambda x: (-x["pct"], -x["g"])))
+    # 11. maxima, finishes en snelste legs: van ons en van de tegenstanders, per avond en per speler
+    ronde_tegen = {m["ronde"]: m["tegen"] for m in matches}
+    ons, zij = [b for b in bijz if b["team"] == TEAM], [b for b in bijz if b["team"] != TEAM]
 
-    # 11. maxima en finishes van ons en van de tegenstanders
-    def tel(bs):
-        mx = [maximum(b["prestatie"]) for b in bs]
-        fin = [int(b["prestatie"].split()[0]) for b in bs if re.fullmatch(r"\d+ finish", b["prestatie"])]
-        return dict(n180=sum(n for s, n in filter(None, mx) if s == 180), max_overig=sum(n for s, n in filter(None, mx) if s in (162, 171, 174, 177)),
-                    finish=len(fin), hoogste=max(fin, default=None))
-    maxima = dict(wij=tel([b for b in bijz if b["team"] == TEAM]), zij=tel([b for b in bijz if b["team"] != TEAM]),
+    def per_speler(bs, met_team):
+        namen = sorted({b["speler"] for b in bs})
+        rijen = [dict(naam=n, team=", ".join(sorted({ronde_tegen.get(b["ronde"], "") for b in bs if b["speler"] == n})) if met_team else "",
+                      **bijz_tel([b for b in bs if b["speler"] == n])) for n in namen]
+        return sorted(rijen, key=lambda r: (-r["n180"], -r["max_overig"], -(r["hoogste"] or 0), r["snelste"] or 99, r["naam"]))
+    maxima = dict(wij=bijz_tel(ons), zij=bijz_tel(zij), avonden=len(gespeeld),
+                  spelers_wij=per_speler(ons, False), spelers_zij=per_speler(zij, True),
                   per_avond=[dict(ronde=m["ronde"], datum=m["datum"], tegen=m["tegen"],
-                                  wij=tel([b for b in bijz if b["ronde"] == m["ronde"] and b["team"] == TEAM]),
-                                  zij=tel([b for b in bijz if b["ronde"] == m["ronde"] and b["team"] != TEAM])) for m in gespeeld])
+                                  wij=bijz_tel([b for b in ons if b["ronde"] == m["ronde"]]),
+                                  zij=bijz_tel([b for b in zij if b["ronde"] == m["ronde"]])) for m in gespeeld])
 
-    return dict(onderdelen=onderdelen, plekken=[dict(plek=k, **v) for k, v in sorted(plekken.items(), key=lambda kv: (kv[0].startswith("Koppel"), int(kv[0].split()[1])))], spannend=spannend_,
-                thuisuit=thuisuit, topbodem=topbodem, prognose=prognose, breedte=breedte, maxima=maxima)
+    return dict(onderdelen=onderdelen, spannend=spannend_, thuisuit=thuisuit, prognose=prognose, maxima=maxima)
 
 
 def build_team(TEAM, TEAM_ID, S, out, nav):
@@ -558,7 +548,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
     return dict(
         team=TEAM, slug=slugify(TEAM), div=DIV, seizoen=S, bijgewerkt=NOW.strftime("%d-%m-%Y %H:%M"), locatie=locatie,
         captain=role("Captain"), rc=role("Reserve captain"), bron=f"{B}/web/team?d={D}&t={TEAM_ID}&s={S}",
-        stand=standd, extra=extra_stats(TEAM, matches, games, bijz, standd),
+        stand=standd, analyse=analyse(TEAM, matches, games, bijz, standd),
         matches=[dict(ronde=m["ronde"], datum=m["datum"], tegen=m["tegen"], tu=m["tu"], uitslag=m["uitslag"], vrij=m["vrij"],
                       wij=int(m["wijzij"].split(" - ")[0]) if m["score"] else None,
                       zij=int(m["wijzij"].split(" - ")[1]) if m["score"] else None,

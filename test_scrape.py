@@ -75,23 +75,29 @@ namen = [dict(naam=n, singles=None, winst=None) for n in {p for g in games for p
 fout = s.controleer("The Pirates 2", [], games, namen, s.defaultdict(lambda: s.defaultdict(int)), [[]], {}, bijz, {"180ers": leeg, "171ers": leeg, "Hoogste finishes": leeg}, {})
 assert not [f for f in fout if "speelde" in f], fout
 
-# opstellingsplek = volgorde op het formulier (4A, Pirates 7 uit bij Wheels & Arrows, 11-09): 3e en 4e koppelpartij
-# zijn Koppel 3 en 4, ook al spelen dezelfde paren ("Koppel 1* - B" = 3e koppel). Door de gebruiker bevestigd.
+# spannende partijen (4A, Pirates 7 uit bij Wheels & Arrows, 11-09): 6 partijen in de laatste leg beslist, RR telt niet
 wed = dict(ronde="1", datum="11-09-2026", thuis="Wheels & Arrows", uit="Pirates 7")
 games, bijz, _ = s.parse_form(pagina("formulier-4a-uit.html"), wed, "Pirates 7")
-assert [(p, g["uitslag"]) for p, g in s.plekken_van(games)] == [("Single 1", "V"), ("Single 2", "V"), ("Single 3", "V"), ("Single 4", "W"),
-                                                                ("Koppel 1", "V"), ("Koppel 2", "W"), ("Koppel 3", "V"), ("Koppel 4", "V")]
 assert sum(s.spannend(g) for g in games) == 6 and not any(s.spannend(g) for g in games if s.game_type(g["onderdeel"]) == "RR")
-# andere divisie ("Koppel 1: 1* - A (501 bo 5)" ... "Koppel 4: 2 - A*"): ook daar de volgorde
-wed = dict(ronde="5", datum="06-10-2026", thuis="Breehoek the Force", uit="The Pirates 2")
-games, bijz, _ = s.parse_form(pagina("formulier-2x180.html"), wed, "The Pirates 2")
-assert [p for p, g in s.plekken_van(games) if p.startswith("Koppel")] == [f"Koppel {i}" for i in range(1, 5)]
-assert [g["onderdeel"][:8] for p, g in s.plekken_van(games) if p == "Koppel 3"] == ["Koppel 3"]
 assert s.maximum("2x 180") == (180, 2) and s.maximum("1x 171") == (171, 1) and s.maximum("13 darter") is None
 
-# extra_stats mag niet crashen op het begin van het seizoen (lege stand, nog niets gespeeld)
-leeg = s.extra_stats("T", [dict(ronde="1", datum="01-09-2026", tegen="X", tu="Thuis", uitslag="", form=None, vrij=False)], [], [],
-                     [dict(pos="", team="T", wed="", w="", v="", pnt="", gem="", zone=""), dict(pos=1, team="X", wed=0, w=0, v=0, pnt=0, gem="", zone="")])
-assert leeg["prognose"]["rest"] == 1 and leeg["thuisuit"]["Thuis"]["avonden"] == 0 and leeg["plekken"] == [], leeg
+# maxima en snelste leg zoals teambeheer ze noteert (formulier RR Solo: "1x 171", "110 finish", "13 darter")
+wed = dict(ronde="2", datum="17-09-2026", thuis="The Pirates 2", uit="DC DVSA")
+games, bijz, _ = s.parse_form(pagina("formulier-rr-solo.html"), wed, "The Pirates 2")
+t = s.bijz_tel(bijz)
+assert (t["n180"], t["max_overig"], t["finishes"], t["snelste"]) == (0, 1, [110, 100], 13), t
+t = s.bijz_tel(s.parse_form(pagina("formulier-2x180.html"), dict(ronde="5", datum="06-10-2026", thuis="Breehoek the Force", uit="The Pirates 2"), "The Pirates 2")[1])
+assert t["n180"] == 4 and t["hoogste"] == 116 and t["snelste"] is None, t  # 2x 180 + 1x 180 + 1x 180
+
+# analyse mag niet crashen aan het begin van het seizoen (lege stand, nog niets gespeeld)
+m0 = dict(ronde="1", datum="01-09-2026", thuis="T", uit="X", tegen="X", tu="Thuis", uitslag="", form=None, vrij=False, h=None, u=None)
+leeg = s.analyse("T", [m0], [], [], [dict(pos="", team="T", wed="", w="", v="", pnt="", gem="", zone=""),
+                                     dict(pos=1, team="X", wed=0, w=0, v=0, pnt=0, gem="", zone="")])
+assert leeg["prognose"]["rest"] == 1 and leeg["prognose"]["reeks"] == [] and leeg["thuisuit"]["Thuis"]["avonden"] == 0, leeg
+
+# reglementaire uitslag (5--5) telt mee in W/V en de puntenreeks, niet in het gemiddelde per avond
+mr = dict(m0, uitslag="W", h=5, u=-5, form=None)
+r = s.analyse("T", [mr], [], [], [dict(pos=1, team="T", wed=1, w=1, v=0, pnt=5, gem=5.0, zone="")])
+assert r["thuisuit"]["Thuis"] == dict(w=1, v=0, gl=0, avonden=0, gem=None) and r["prognose"]["reeks"][0]["pnt"] == 5, r
 
 print("alle controles OK")

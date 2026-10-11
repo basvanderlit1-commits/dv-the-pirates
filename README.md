@@ -18,8 +18,35 @@ Volgorde: check → controles (`test_scrape.py`) → bouwen → uitrollen → me
 | `scrape.py` | ophalen en bouwen |
 | `dashboard_template.html` / `club_template.html` | teamdashboard / clubpagina |
 | `web/` | huisstijl (`style.css`), gedeelde scripts (`gedeeld.js`), logo, banner, iconen |
-| `test_scrape.py` | snelle controles zonder internet |
+| `test_scrape.py` | snelle controles zonder internet, ook op echte pagina's in `testdata/` |
 | `archief/` | eindstanden van vorige seizoenen (vult zich vanzelf bij de seizoenswissel) |
+
+## Rekenregels
+Wat van teambeheer komt (uitslagen, stand, klassementen, lijsten) nemen we ongewijzigd over; dit zijn de regels voor
+wat de site zelf uitrekent.
+- **Partij**: elke regel op het wedstrijdformulier met een uitslag. Round robin telt per leg (301), ook de beslissende
+  "RR Solo" bij 4–4. Per avond speelt een speler 1 single, 2 koppels en 2 round robins (+ eventueel de Solo).
+- **Uitslag avond**: de punten van teambeheer. Controle: singles + koppels + 1 punt voor de round robin samen.
+- **Reglementair** (bv. `5--5`, geen formulier): telt mee in stand, vorm en W–V, niet als gespeelde avond
+  (beste avond, uitslag van de week).
+- **Bijzondere prestaties** zoals teambeheer ze noteert: `2x 180` = twee 180's, `1x 171`, `153 finish`.
+  Maximum-categorie = 180, 177, 174, 171, 162; in het aantal 180's tellen alleen echte 180's.
+- **Speler van de week**: week = maandag t/m vrijdag. Per speler telt zijn beste avond (twee keer gespeeld = beste
+  wedstrijd). Punten = gewonnen partijen + 1 per maximum + 1 per finish van 100+; gelijk: winst%, dan legsaldo.
+- **Ranglijst spelers**: winstpercentage, meedoen vanaf meer dan 25% van het hoogste aantal partijen; competitie + beker.
+  Het persoonlijk klassement komt van teambeheer (alleen competitie).
+
+## Fouten voorkomen
+1. **Elke build vergelijkt met teambeheer** (`controleer` in `scrape.py`): stand, singles per speler, persoonlijk
+   klassement, 180's/171's/finishes, partijen per speler per avond, onbekende notaties. Een nieuwe afwijking = seintje
+   aan de beheerder. Achterlopende stand van teambeheer (uitslag al binnen, stand nog niet) geeft geen seintje.
+2. **Tests op echte pagina's** in `testdata/` (reglementaire uitslag, 2x 180, RR Solo). Gaat er iets mis met een
+   nieuwe notatie, sla dan die pagina daar op en voeg een regel toe aan `test_scrape.py`. Nooit zelf voorbeelden
+   verzinnen: juist daar ging het mis.
+3. **Rekenregels hierboven** bijwerken bij elke wijziging in wat de site uitrekent.
+4. **Nieuw onderdeel op de site?** Eerst nagaan wat er in het echt kan gebeuren en of de berekening dan nog klopt:
+   twee keer spelen in één week, vrije week, reglementair, beslissende leg, beker, uitgestelde wedstrijd, nieuwe
+   notatie op het formulier. Bij twijfel over de spelregels: navragen, niet aannemen.
 
 ## Meldingen (ntfy)
 - Per team `<teamnaam zonder spaties>-dbmn-uitslagen` (bv. `pirates7-dbmn-uitslagen`) en clubtopic `dv-the-pirates-dbmn-uitslagen`.

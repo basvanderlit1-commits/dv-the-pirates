@@ -54,8 +54,10 @@ def _soup(path):
 def get(path, full=False):
     soup = _soup(path)
     # desktop-weergave; de pagina bevat dezelfde tabellen nogmaals voor tablet/mobiel
-    if full:
-        return soup
+    return soup if full else desktop(soup)
+
+
+def desktop(soup):
     return next((r for r in soup.select(".computer.only.row") if "mobile" not in r["class"]), soup)
 
 
@@ -240,6 +242,33 @@ def controleer(TEAM, matches, games, spelers, agg, stand, pk, bijz, bijz_lists, 
     return fout
 
 
+def parse_form(f, m, TEAM):
+    """Partijen, bijzondere prestaties en locatie van één wedstrijdformulier (m = de wedstrijd uit parse_team)."""
+    thuis = m["thuis"] == TEAM
+    games, bijz = [], []
+    for tr in f.find("table").find("tbody").find_all("tr"):
+        td = tr.find_all("td")
+        sc = txt(td[-1]) if td else ""
+        # Totaal ("7 - 2") / niet gespeeld overslaan; "Team 1001/3" (beker) heeft geen spelerskolommen, dus 3 cellen
+        if len(td) < 3 or not re.fullmatch(r"\d+-\d+", sc):
+            continue
+        hp = [txt(a) for a in td[1].find_all("a")]
+        up = [txt(a) for a in td[2].find_all("a")]
+        h, u = map(int, sc.split("-"))
+        mine, theirs = (h, u) if thuis else (u, h)
+        games.append(dict(ronde=m["ronde"], datum=m["datum"], tegen=m["uit"] if thuis else m["thuis"],
+                          onderdeel=txt(td[0]), wij=", ".join(hp if thuis else up) or "(team)",
+                          zij=", ".join(up if thuis else hp) or "(team)", legs_wij=mine, legs_zij=theirs,
+                          uitslag="W" if mine > theirs else "V"))
+    loc = f.find(string="Locatie")
+    locatie = clean_loc(" | ".join(loc.find_parent().find_next("a").parent.stripped_strings)
+                        .split(" | Bijz.")[0].removeprefix("Locatie | ").split(" | ")) if loc else ""
+    for item in f.select(".ui.list .item"):
+        bijz.append(dict(ronde=m["ronde"], datum=m["datum"], speler=txt(item.select_one(".header")),
+                         prestatie=txt(item.select_one(".content")).replace(txt(item.select_one(".header")), "", 1).strip()))
+    return games, bijz, locatie
+
+
 def build_team(TEAM, TEAM_ID, S, out, nav):
     """Haalt alles van één team op, schrijft de Excel in out/ en geeft de dashboard-data terug."""
     team = get(f"/web/team?d={D}&t={TEAM_ID}&s={S}")
@@ -249,30 +278,10 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
     # ---------- wedstrijdformulieren ----------
     games, bijz = [], []
     for m in matches:
-        if not m["form"]:
-            continue
-        f = get(m["form"])
-        thuis = m["thuis"] == TEAM
-        for tr in f.find("table").find("tbody").find_all("tr"):
-            td = tr.find_all("td")
-            sc = txt(td[-1]) if td else ""
-            # Totaal ("7 - 2") / niet gespeeld overslaan; "Team 1001/3" (beker) heeft geen spelerskolommen, dus 3 cellen
-            if len(td) < 3 or not re.fullmatch(r"\d+-\d+", sc):
-                continue
-            hp = [txt(a) for a in td[1].find_all("a")]
-            up = [txt(a) for a in td[2].find_all("a")]
-            h, u = map(int, sc.split("-"))
-            mine, theirs = (h, u) if thuis else (u, h)
-            games.append(dict(ronde=m["ronde"], datum=m["datum"], tegen=m["uit"] if thuis else m["thuis"],
-                              onderdeel=txt(td[0]), wij=", ".join(hp if thuis else up) or "(team)",
-                              zij=", ".join(up if thuis else hp) or "(team)", legs_wij=mine, legs_zij=theirs,
-                              uitslag="W" if mine > theirs else "V"))
-        loc = f.find(string="Locatie")
-        m["locatie"] = clean_loc(" | ".join(loc.find_parent().find_next("a").parent.stripped_strings)
-                                 .split(" | Bijz.")[0].removeprefix("Locatie | ").split(" | ")) if loc else ""
-        for item in f.select(".ui.list .item"):
-            bijz.append(dict(ronde=m["ronde"], datum=m["datum"], speler=txt(item.select_one(".header")),
-                             prestatie=txt(item.select_one(".content")).replace(txt(item.select_one(".header")), "", 1).strip()))
+        if m["form"]:
+            g, b, m["locatie"] = parse_form(get(m["form"]), m, TEAM)
+            games += g
+            bijz += b
     controle = []  # afwijkingen: de site wordt wel bijgewerkt, de beheerder krijgt een seintje
     for m in matches:  # controle: uitslag = som van de partijen, waarbij de round robin samen één punt is
         if m["uitslag"] and m["form"]:  # reglementair: geen formulier, dus niets om op te tellen

@@ -44,11 +44,35 @@ a = s.archief_van(dict(seizoen="25-26", teams=[dict(naam="Pirates 7", div="4A", 
                                                     bijz=[dict(prestatie="2x 180"), dict(prestatie="1x 171"), dict(prestatie="121 finish")])]))
 assert a["seizoen"] == "25-26" and a["teams"][0]["n180"] == 2 and a["teams"][0]["finish"] == 121
 
-# reglementaire uitslag: "W 5--5" zonder link naar een formulier telt wel mee
+# ---------- echte pagina's van teambeheer (testdata/), met de gevallen die eerder fout gingen ----------
+# Geen zelfbedachte voorbeelden: de notatie van teambeheer ("1x 180", "5--5") is precies waar het misging.
+import re
+from pathlib import Path
 from bs4 import BeautifulSoup
-html = ("<table><tr><th>#</th></tr><tbody><tr><td>1</td><td>10-09-2026</td><td>Wij</td>"
-        "<td><a href='/web/team?t=9'>Zij</a></td><td><b>W</b>5--5</td></tr></tbody></table>")
-m = s.parse_team(BeautifulSoup(html, "html.parser"), "Wij")[0][0]
+pagina = lambda f: s.desktop(BeautifulSoup((Path(__file__).parent / "testdata" / f).read_bytes().decode("utf-8", "replace"), "html.parser"))
+
+# reglementaire uitslag (The Pirates 1 - Darth Vader 5, "W 5--5" zonder formulier) telt mee in de stand
+ms, spelers, _ = s.parse_team(pagina("team-reglementair-5--5.html"), "The Pirates 1")
+m = next(x for x in ms if x["ronde"] == "1")
 assert (m["uitslag"], m["h"], m["u"], m["form"]) == ("W", 5, -5, None), m
+assert all(x["uitslag"] in "WVG" for x in ms) and spelers
+
+# 2x 180 op één avond (Jasper van Vulpen, 06-10) telt als 2; uitslag = som van de partijen (RR samen één punt)
+wed = dict(ronde="5", datum="06-10-2026", thuis="Breehoek the Force", uit="The Pirates 2")
+games, bijz, locatie = s.parse_form(pagina("formulier-2x180.html"), wed, "The Pirates 2")
+assert sum(s.n180(b["prestatie"]) for b in bijz if b["speler"] == "Jasper van Vulpen") == 2, bijz
+assert all(re.fullmatch(r"\d+x \d+|\d+ finish", b["prestatie"]) for b in bijz), bijz
+rr = [g for g in games if s.game_type(g["onderdeel"]) == "RR"]
+punten = sum(g["uitslag"] == "W" for g in games if g not in rr) + (sum(g["legs_wij"] for g in rr) > sum(g["legs_zij"] for g in rr))
+assert punten == 3 and locatie, (punten, locatie)  # uitslag 6-3 voor Breehoek
+
+# beslissende "RR Solo" bij 4-4: derde RR van Jasper (17-09) is echt en mag geen controle-seintje geven
+wed = dict(ronde="2", datum="17-09-2026", thuis="The Pirates 2", uit="DC DVSA")
+games, bijz, _ = s.parse_form(pagina("formulier-rr-solo.html"), wed, "The Pirates 2")
+assert sum(g["wij"] == "Jasper van Vulpen" and s.game_type(g["onderdeel"]) == "RR" for g in games) == 3
+leeg = [["#", "Speler", "Team", "Divisie", "Hoeveel"]]
+namen = [dict(naam=n, singles=None, winst=None) for n in {p for g in games for p in g["wij"].split(", ")}]
+fout = s.controleer("The Pirates 2", [], games, namen, s.defaultdict(lambda: s.defaultdict(int)), [[]], {}, bijz, {"180ers": leeg, "171ers": leeg, "Hoogste finishes": leeg}, {})
+assert not [f for f in fout if "speelde" in f], fout
 
 print("alle controles OK")

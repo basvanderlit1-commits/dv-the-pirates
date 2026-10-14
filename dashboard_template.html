@@ -144,7 +144,11 @@ const pct = (w, n) => n ? Math.round(100 * w / n) : null;
 const pill = r => r ? `<span class="pill ${r}">${r}</span>` : "";
 const toDate = s => { const [d, m, y] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 const beker = m => m.ronde.startsWith("b");
-const played = D.matches.filter(m => m.uitslag);
+// op datum, ook als een uitgestelde wedstrijd later wordt ingehaald (teambeheer toont ze op rondevolgorde)
+const op_datum = (a, b) => toDate(a.datum) - toDate(b.datum);
+const played = D.matches.filter(m => m.uitslag).sort(op_datum);
+const datumVan = Object.fromEntries(D.matches.filter(m => !m.vrij).map(m => [m.ronde, m.datum]));
+D.games.sort((a, b) => toDate(datumVan[a.ronde]) - toDate(datumVan[b.ronde]));  // stabiel: volgorde op het formulier blijft
 const todo = D.matches.filter(m => !m.uitslag && !m.vrij);
 const comp = played.filter(m => !beker(m));
 const me = D.stand.find(s => s.team === D.team) || {};
@@ -182,7 +186,7 @@ $("kpis").innerHTML = [
   ["Gemiddeld", nl(me.gem), "punten per avond"],
   ["Winst / verlies", `${me.w}–${me.v}`, "competitie"],
   ["Partijen", `${pct(gW, D.games.length) ?? 0}%`, `${gW} van ${D.games.length} gewonnen`],
-  ["180's", n180, `nog ${todo.length} avonden`],
+  ["180's", n180, `nog ${todo.filter(m => toDate(m.datum) >= today).length} avonden`],
 ].map(([l, v, s, lead]) => `<div class="kpi${lead ? " lead" : ""}"><div class="lbl">${l}</div><div class="val">${esc(v)}</div><div class="sub">${esc(s)}</div></div>`).join("");
 $("form").innerHTML = played.slice(-5).map(m => `<span class="pill ${m.uitslag}" title="${esc(m.tegen)} ${m.wij}-${m.zij}">${m.uitslag}</span>`).join("");
 
@@ -240,7 +244,7 @@ const TYPES = [["RR", "Round robin 301"], ["Single", "Singles"], ["Koppel", "Kop
 function matchHtml(m) {
   const rn = `<span class="rnd">${beker(m) ? "B" : esc(m.ronde)}</span>`;
   if (m.vrij) return `<details class="match todo bye"><summary tabindex="-1">${rn}<span class="opp"><b>Vrije week</b><small>${beker(m) ? "beker" : ""}</small></span><span></span><span></span><span></span></summary></details>`;
-  const sub = `<small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}${m.regl ? " · reglementair" : ""}</small>`;
+  const sub = `<small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}${m.regl ? " · reglementair" : ""}${m.form_volgt ? " · formulier volgt" : ""}</small>`;
   const route = m.locatie ? ` · <a href="${maps(m.locatie)}" target="_blank" rel="noopener">route ↗</a>` : "";
   if (!m.uitslag) return `<details class="match todo"><summary tabindex="-1">${rn}<span class="opp"><b>${esc(m.tegen)}</b><small>${esc(m.datum)} · ${m.tu}${beker(m) ? " · beker" : ""}${toDate(m.datum) < today ? " · <span class=\"late\">nog geen uitslag</span>" : route}</small></span><span class="score dim">–</span><span></span><span class="chev">›</span></summary></details>`;
   const gs = D.games.filter(g => g.ronde === m.ronde);
@@ -249,7 +253,7 @@ function matchHtml(m) {
     return list.length ? `<div><h4>${label}</h4>` + list.map(g => `<div class="game" title="${esc(g.onderdeel)}"><span class="us">${esc(g.wij)}</span><span class="legs">${g.lw}–${g.lz}</span><span class="them">${esc(g.zij)}</span>${pill(g.uitslag)}</div>`).join("") + "</div>" : "";
   }).join("");
   return `<details class="match"><summary>${rn}<span class="opp"><b>${esc(m.tegen)}</b>${sub}</span><span class="score">${m.wij}–${m.zij}</span>${pill(m.uitslag)}<span class="chev">›</span></summary>
-    <div class="detail"><div class="meta">${esc(m.locatie)}${m.form ? ` · <a href="${esc(m.form)}" target="_blank" rel="noopener">Wedstrijdformulier ↗</a>` : ""} <button class="btn ghost share" type="button" data-share="${esc(m.ronde)}">Deel uitslag</button></div><div class="games">${groups}</div></div></details>`;
+    <div class="detail"><div class="meta">${esc(m.locatie)}${m.form ? ` · <a href="${esc(m.form)}" target="_blank" rel="noopener">Wedstrijdformulier ↗</a>` : ""} <button class="btn ghost share" type="button" data-share="${esc(m.ronde)}">Deel uitslag</button></div><div class="games">${groups || (m.form_volgt ? `<p class="note">Het wedstrijdformulier staat nog niet op teambeheer. De partijen verschijnen vanzelf zodra het er is.</p>` : "")}</div></div></details>`;
 }
 function showProgramma(f) {
   const list = f === "gespeeld" ? [...played].reverse() : f === "todo" ? todo : D.matches;

@@ -553,7 +553,9 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
                       wij=int(m["wijzij"].split(" - ")[0]) if m["score"] else None,
                       zij=int(m["wijzij"].split(" - ")[1]) if m["score"] else None,
                       locatie=m.get("locatie", ""), form=B + m["form"] if m["form"] else None,
-                      regl=bool(m["uitslag"]) and not m["form"])  # reglementair (bv. "5--5"): uitslag zonder formulier
+                      # reglementair: notatie met een min-teken ("5--5"); een gewone uitslag zonder formulier = formulier volgt nog
+                      regl=bool(m["uitslag"]) and not m["form"] and min(m["h"], m["u"]) < 0,
+                      form_volgt=bool(m["uitslag"]) and not m["form"] and min(m["h"], m["u"]) >= 0)
                  for m in matches],
         games=[dict(ronde=g["ronde"], type=kind(g["onderdeel"]), onderdeel=g["onderdeel"], wij=g["wij"], zij=g["zij"],
                     lw=g["legs_wij"], lz=g["legs_zij"], uitslag=g["uitslag"]) for g in games],
@@ -646,7 +648,7 @@ def summary(d, url):
     me = next((s for s in d["stand"] if s["team"] == d["team"]), {})
     return dict(naam=d["team"], url=url, div=d["div"], pos=me.get("pos"), teams=len(d["stand"]), pnt=me.get("pnt"),
                 gem=me.get("gem"), w=me.get("w"), v=me.get("v"), ntfy=d["ntfy"],
-                matches=[{k: m[k] for k in ("ronde", "datum", "tegen", "tu", "uitslag", "wij", "zij", "vrij", "locatie", "regl")}
+                matches=[{k: m[k] for k in ("ronde", "datum", "tegen", "tu", "uitslag", "wij", "zij", "vrij", "locatie", "regl", "form_volgt")}
                          for m in d["matches"]],
                 bijz=d["bijz"], stand=d["stand"], tegenstanders=d["tegenstanders"], zone=me.get("zone", ""), ics=d["ics"], seizoen=d["seizoen"], controle=d["controle"], locatie=d["locatie"], spelers=[s["naam"] for s in d["spelers"]],
                 games=[[g["ronde"], g["type"], g["wij"], g["uitslag"], g["lw"], g["lz"]] for g in d["games"]])
@@ -659,7 +661,7 @@ def check_hash(teams):
     for naam, (team_id, s) in teams.items():
         page = get(f"/web/team?d={D}&t={team_id}&s={s}")
         ms, _, _ = parse_team(page, naam)
-        h.update(json.dumps([(m["ronde"], m["datum"], m["score"]) for m in ms]).encode())
+        h.update(json.dumps([(m["ronde"], m["datum"], m["score"], bool(m["form"])) for m in ms]).encode())
         div = re.search(r"Divisie (\w+)", txt(page.find("a", href=re.compile(r"/web/stand")))).group(1)
         stand = next(t for t in get(f"/web/stand?d={D}&s={s}&div={div}", full=True).find_all("table")
                      if "Wed" in [txt(th) for th in t.find_all("th")])

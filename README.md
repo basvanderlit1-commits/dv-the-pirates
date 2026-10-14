@@ -29,6 +29,8 @@ wat de site zelf uitrekent.
 - **Uitslag avond**: de punten van teambeheer. Controle: singles + koppels + 1 punt voor de round robin samen.
 - **Reglementair** (bv. `5--5`, geen formulier): telt mee in stand, vorm en W–V, niet als gespeelde avond
   (beste avond, uitslag van de week).
+- **Formulier volgt**: een gewone uitslag (zonder min-teken) maar nog zonder formulier op teambeheer. De uitslag telt
+  mee; de partijen per speler volgen zodra het formulier er is (de avondcheck let ook op een nieuw formulier).
 - **Bijzondere prestaties** zoals teambeheer ze noteert: `2x 180` = twee 180's, `1x 171`, `153 finish`.
   Maximum-categorie = 180, 177, 174, 171, 162; in het aantal 180's tellen alleen echte 180's.
 - **Speler van de week**: week = maandag t/m vrijdag. Per speler telt zijn beste avond (twee keer gespeeld = beste

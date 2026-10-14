@@ -265,7 +265,9 @@ $("kpis").innerHTML = [
   ["Beste positie", best ? `${best.pos}e` : "–", best ? best.naam : ""],
   ["180's", n180, "hele club"],
   ["Hoogste finish", fins[0]?.v ?? "–", fins[0] ? fins[0].speler : "nog geen 100+"],
-  ["Nog te spelen", T.reduce((a, t) => a + t.todo.length, 0), "wedstrijden"],
+  // nog te spelen = vanaf vandaag; een verstreken wedstrijd zonder uitslag (uitgesteld of nog niet ingevuld) apart
+  ["Nog te spelen", T.reduce((a, t) => a + t.todo.filter(m => toDate(m.datum) >= today).length, 0),
+   (n => n ? `wedstrijden · ${n} zonder uitslag` : "wedstrijden")(T.reduce((a, t) => a + t.todo.filter(m => toDate(m.datum) < today).length, 0))],
 ].map(([l, v, s, lead]) => `<div class="kpi${lead ? " lead" : ""}"><div class="lbl">${l}</div><div class="val">${esc(v)}</div><div class="sub">${esc(s)}</div></div>`).join("");
 
 // ---- speler en uitslag van de week (laatste week met gespeelde wedstrijden) ----

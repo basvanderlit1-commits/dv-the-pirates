@@ -286,7 +286,9 @@ const pos = (label, n) => {
 $("pk").innerHTML = `<thead><tr><th>Speler</th><th>Singles</th><th>Koppels</th></tr></thead><tbody>` +
   names.map(n => `<tr><td><b>${esc(n)}</b></td><td data-label="Singles">${pos("Singles", n)}</td><td data-label="Koppels">${pos("Koppels", n)}</td></tr>`).join("") + "</tbody>";
 
-$("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span><a class="dl" href="${esc(D.xlsx)}" download>Data downloaden (Excel)</a><span>Thuis: ${esc(D.locatie)}</span><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
+// dubbele controle: elk getal op twee manieren met teambeheer nagerekend (anders minstens 3 van 4)
+const dc = D.dubbel || {}, dcN = (dc["2/2"] || 0) + (dc["3/4"] || 0);
+$("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span>${dcN ? `<span class="plus" title="Elk getal op twee manieren uitgerekend uit teambeheer (uitslagen, stand, formulieren, spelerspagina's); wijken die af, dan moeten minstens 3 van 4 berekeningen overeenkomen.">✓ ${dcN} getallen dubbel gecontroleerd met teambeheer${dc["3/4"] ? ` (${dc["3/4"]} via 3 van 4)` : ""}</span>` : ""}<a class="dl" href="${esc(D.xlsx)}" download>Data downloaden (Excel)</a><span>Thuis: ${esc(D.locatie)}</span><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
 
 // ---- voorbeschouwing volgende tegenstander (met route) ----
 (function preview() {

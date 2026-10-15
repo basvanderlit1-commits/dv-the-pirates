@@ -52,6 +52,23 @@ wat de site zelf uitrekent.
     `NN darter` = snelste leg (laagste). Per speler bij ons en bij de tegenstanders (met hun team), en per avond.
     Een speler die niet in onze spelerslijst staat telt als tegenstander.
 
+## Dubbele controle (elke build)
+DBMN publiceert zijn standen via teambeheer (de DBMN-site laadt `feeds.teambeheer.nl`), dus de bron is één database.
+Onafhankelijk zijn wél de verschillende pagina's die teambeheer van dezelfde feiten maakt. Elk getal wordt op twee
+manieren uitgerekend (`dubbel()` in `scrape.py`); gelijk = goed. Wijken die af, dan moeten minstens 3 van de 4
+berekeningen hetzelfde zeggen. Lukt ook dat niet, dan wordt dat team niet bijgewerkt (vorige versie blijft staan) en
+krijgt de beheerder een seintje met per bron de waarde. Onderaan elke pagina: "✓ N getallen dubbel gecontroleerd".
+
+| Getal | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| uitslag per avond | onze teampagina | teampagina tegenstander | Totaal-regel formulier | optelling partijen |
+| stand (wed, punten) | standtabel | punten per ronde | onze uitslagen | uitslagen bij de tegenstanders |
+| singles per speler | formulieren | spelerspagina | spelerstabel teampagina | tweede uitlezing formulier |
+| koppels per speler | formulieren | spelerspagina | tweede uitlezing | – |
+| round robin per speler | formulieren | tweede uitlezing | – | – |
+| 180's / 171's (competitie) | formulieren | spelerspagina | lijst van de poule | teller spelerspagina / tweede uitlezing |
+| finishes, snelste leg | formulieren | spelerspagina | tweede uitlezing (finishes) | – |
+
 ## Fouten voorkomen
 1. **Elke build vergelijkt met teambeheer** (`controleer` in `scrape.py`): stand, singles per speler, persoonlijk
    klassement, 180's/171's/finishes, partijen per speler per avond, onbekende notaties. Een nieuwe afwijking = seintje

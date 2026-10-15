@@ -552,7 +552,9 @@ if ((D.archief || []).length) {
     "</tbody></table></div>").join("");
 } else $("archiefPanel").remove();
 
-$("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span><a class="dl" href="${esc(D.pirates7)}">Eigen site van Pirates 7 ↗</a><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
+// dubbele controle van alle teams samen (zie teamdashboards)
+const dcT = T.reduce((a, t) => [a[0] + ((t.dubbel || {})["2/2"] || 0), a[1] + ((t.dubbel || {})["3/4"] || 0)], [0, 0]);
+$("foot").innerHTML = `<span>D.V. The Pirates · est. 1985</span><span>Bijgewerkt ${esc(D.bijgewerkt)}</span>${dcT[0] + dcT[1] ? `<span class="plus" title="Elk getal op twee manieren uitgerekend uit teambeheer; wijken die af, dan moeten minstens 3 van 4 berekeningen overeenkomen. Lukt dat niet, dan wordt dat team niet bijgewerkt.">✓ ${dcT[0] + dcT[1]} getallen dubbel gecontroleerd met teambeheer${dcT[1] ? ` (${dcT[1]} via 3 van 4)` : ""}</span>` : ""}<a class="dl" href="${esc(D.pirates7)}">Eigen site van Pirates 7 ↗</a><span>Bron: <a href="${esc(D.bron)}" target="_blank" rel="noopener">teambeheer.nl</a></span>`;
 
 // ---- telefoon: tabbladen onderin (onthouden via #hash) ----
 const VIEWS = ["club", "teams", "week", "spelers", "meldingen"];

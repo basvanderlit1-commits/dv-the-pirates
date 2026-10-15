@@ -100,4 +100,20 @@ mr = dict(m0, uitslag="W", h=5, u=-5, form=None)
 r = s.analyse("T", [mr], [], [], [dict(pos=1, team="T", wed=1, w=1, v=0, pnt=5, gem=5.0, zone="")])
 assert r["thuisuit"]["Thuis"] == dict(w=1, v=0, gl=0, avonden=0, gem=None) and r["prognose"]["reeks"][0]["pnt"] == 5, r
 
+# dubbele controle: twee gelijk = goed; anders minstens 3 van 4; anders fout
+assert s.stemming([("a", [6, 3]), ("b", [6, 3]), ("c", None), ("d", None)]) == (True, 2)
+assert s.stemming([("a", [6, 3]), ("b", [5, 4]), ("c", [6, 3]), ("d", [6, 3])]) == (True, 3)
+assert s.stemming([("a", [6, 3]), ("b", [5, 4]), ("c", [6, 3]), ("d", None)])[0] is False
+assert s.stemming([("a", None), ("b", None)]) == (True, 2)  # allebei "niets" (bv. geen snelste leg)
+# tweede uitlezing van echte formulieren = eerste uitlezing, en de Totaal-regel = optelling van de partijen
+for f, wed, team in (("formulier-2x180.html", dict(ronde="5", datum="06-10-2026", thuis="Breehoek the Force", uit="The Pirates 2"), "The Pirates 2"),
+                     ("formulier-rr-solo.html", dict(ronde="2", datum="17-09-2026", thuis="The Pirates 2", uit="DC DVSA"), "The Pirates 2"),
+                     ("formulier-4a-uit.html", dict(ronde="1", datum="11-09-2026", thuis="Wheels & Arrows", uit="Pirates 7"), "Pirates 7")):
+    games, bijz, _ = s.parse_form(pagina(f), wed, team)
+    partijen, totaal, prestaties = s.herteld(pagina(f), wed["thuis"] == team)
+    assert [(s.game_type(g["onderdeel"]), g["wij"].split(", ") if g["wij"] != "(team)" else [], g["legs_wij"], g["legs_zij"]) for g in games] == \
+        [(a, b, c, d) for a, b, c, d in partijen], f
+    assert totaal == s.punten_uit_partijen(games), (f, totaal)
+    assert sorted(prestaties) == sorted((b["speler"], b["prestatie"]) for b in bijz), f
+
 print("alle controles OK")

@@ -13,7 +13,7 @@ import os
 import re
 import shutil
 import traceback
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
@@ -240,6 +240,146 @@ def controleer(TEAM, matches, games, spelers, agg, stand, pk, bijz, bijz_lists, 
             ons[b["speler"]] = max(ons[b["speler"]], waarde(b["prestatie"])) if lijst == "Hoogste finishes" else ons[b["speler"]] + waarde(b["prestatie"])
         fout += [f"{p} {lijst}: wij {ons[p]}, teambeheer {tb.get(p, 0)}" for p in set(ons) | set(tb) if ons[p] != tb.get(p, 0)]
     return fout
+
+
+def stemming(routes):
+    """routes = [(bron, waarde)]: de eerste twee zijn de hoofdberekeningen. Gelijk = goed (2); anders moeten minstens
+    3 van de (maximaal 4) berekeningen hetzelfde zeggen (3). Geeft (goed?, 2 of 3)."""
+    if routes[0][1] == routes[1][1]:  # ook allebei "niets" (bv. geen snelste leg) is gelijk
+        return True, 2
+    tel = Counter(json.dumps(v) for _, v in routes if v is not None)
+    return bool(tel) and tel.most_common(1)[0][1] >= 3, 3
+
+
+def punten_uit_partijen(gs):
+    """[wij, zij] wedstrijdpunten van één avond uit de partijen; round robin samen één punt (meeste legs)."""
+    rr = [g for g in gs if game_type(g["onderdeel"]) == "RR"]
+    rest = [g for g in gs if g not in rr]
+    rw, rz = sum(g["legs_wij"] for g in rr), sum(g["legs_zij"] for g in rr)
+    return [sum(g["uitslag"] == "W" for g in rest) + (rw > rz), sum(g["uitslag"] == "V" for g in rest) + (rz > rw)]
+
+
+def herteld(f, thuis):
+    """Tweede, losse uitlezing van een wedstrijdformulier (los van parse_form): partijen, de Totaal-regel en de
+    bijzondere prestaties. Partij = (soort, spelers, legs wij, legs zij)."""
+    partijen, totaal = [], None
+    for tr in f.find("table").find_all("tr"):
+        c = tr.find_all("td")
+        if not c:
+            continue
+        laatste, naam = " ".join(c[-1].get_text(" ").split()), " ".join(c[0].get_text(" ").split())
+        if naam == "Totaal":
+            if m := re.fullmatch(r"(\d+) - (\d+)", laatste):
+                totaal = [int(m[1]), int(m[2])] if thuis else [int(m[2]), int(m[1])]
+            continue
+        if not (m := re.fullmatch(r"(\d+)-(\d+)", laatste)):
+            continue
+        h, u = int(m[1]), int(m[2])
+        soort = ("RR" if naam.startswith("RR") else "Single" if naam[:6] in ("Single", "Singel")
+                 else "Koppel" if naam.startswith("Koppel") or re.match(r"K \d", naam) else "Team")
+        spelers = [" ".join(a.get_text(" ").split()) for a in (c[1] if thuis else c[2]).find_all("a")] if len(c) > 3 else []
+        partijen.append((soort, spelers, h if thuis else u, u if thuis else h))
+    prestaties = []
+    for item in f.select(".ui.list .item"):
+        wie = " ".join(item.select_one(".header").get_text(" ").split())
+        prestaties.append((wie, " ".join(item.get_text(" ").split()).replace(wie, "", 1).strip()))
+    return partijen, totaal, prestaties
+
+
+def spelerspagina(sp, TEAM):
+    """Per wedstrijd van TEAM op de spelerspagina van teambeheer: single (W/V), koppels, 171's, 180's, finishes, snelste leg."""
+    tab = next((t for t in sp.find_all("table") if "Koppels" in [txt(th) for th in t.find_all("th")]), None)
+    getallen = lambda x: [int(v) for v in re.findall(r"\d+", x)]
+    rijen = []
+    for tr in tab.find_all("tr") if tab else []:
+        c = [txt(x) for x in tr.find_all("td")]
+        if len(c) >= 11 and TEAM in (c[2], c[3]):
+            rijen.append(dict(ronde=c[0], single=c[5], koppels=c[6].split(), m171=sum(getallen(c[7])), m180=sum(getallen(c[8])),
+                              finish=getallen(c[9]), sl=getallen(c[10])))
+    return rijen
+
+
+def dubbel(TEAM, S, matches, games, bijz, spelers, stand_soup, bijz_lists, tegenstanders):
+    """Elk belangrijk getal op twee onafhankelijke manieren: een andere pagina van teambeheer of een losse tweede
+    uitlezing. Gelijk = goed; anders moeten minstens 3 van 4 berekeningen overeenkomen. Lukt dat niet, dan is het een
+    fout: dit team wordt dan niet bijgewerkt (vorige versie blijft) en de beheerder krijgt een seintje.
+    Geeft (fouten, telling) met telling = {"2/2": n, "3/4": n}. Rekenregels: README "Dubbele controle"."""
+    fout, telling = [], Counter()
+
+    def stem(wat, routes):
+        goed, n = stemming(routes)
+        if goed:
+            telling["2/2" if n == 2 else "3/4"] += 1
+        else:
+            fout.append(f"{wat}: " + " · ".join(f"{b} {v}" for b, v in routes))
+
+    forms = {m["ronde"]: (get(m["form"]), m["thuis"] == TEAM) for m in matches if m["form"]}
+    hertel = {r: herteld(f, thuis) for r, (f, thuis) in forms.items()}
+    via_tegenstander = {(o, x["ronde"], x["datum"]): [x["zij"], x["wij"]] for o, t in tegenstanders.items() for x in t["uitslagen"]}
+    beker = lambda r: r.startswith("b")
+
+    # 1. uitslag per avond: teampagina, pagina van de tegenstander, Totaal-regel van het formulier, optelling partijen
+    for m in matches:
+        if not m["uitslag"]:
+            continue
+        thuis = m["thuis"] == TEAM
+        tegen = m["uit"] if thuis else m["thuis"]
+        r3 = r4 = None
+        if m["ronde"] in hertel:
+            r3 = hertel[m["ronde"]][1]
+            r4 = punten_uit_partijen([g for g in games if g["ronde"] == m["ronde"]])
+        stem(f"ronde {m['ronde']} uitslag", [("teampagina", [m["h"], m["u"]] if thuis else [m["u"], m["h"]]),
+                                            ("tegenstander", via_tegenstander.get((tegen, m["ronde"], m["datum"]))),
+                                            ("formulier", r3), ("partijen", r4)])
+
+    # 2. stand van ons team (wedstrijden, punten): standtabel, punten per ronde, onze uitslagen, die van de tegenstanders
+    tabellen = stand_soup.find_all("table")
+    rij = next(r for r in rows(next(t for t in tabellen if "Wed" in [txt(th) for th in t.find_all("th")])) if len(r) > 5 and r[1] == TEAM)
+    ppr = next(rows(t) for t in tabellen if "Wed" not in [txt(th) for th in t.find_all("th")])
+    prij = next((r for r in ppr[1:] if len(r) > 2 and r[1] == TEAM), [])
+    per_ronde = [v for i, h in enumerate(ppr[0]) if h.isdigit() and i < len(prij) and isinstance(v := num(prij[i]), int)]
+    comp = [m for m in matches if m["uitslag"] and not beker(m["ronde"])]
+    tegen_r = [via_tegenstander.get((m["uit"] if m["thuis"] == TEAM else m["thuis"], m["ronde"], m["datum"])) for m in comp]
+    # strafpunten kunnen wel in het totaal van de stand zitten maar niet in de punten per ronde: dat verschil is geen fout
+    straf = num(rij[7]) if len(rij) > 7 and isinstance(num(rij[7]), int) else 0
+    som_ronde = sum(per_ronde) if sum(per_ronde) == (num(rij[5]) or 0) else sum(per_ronde) - abs(straf)
+    stem("stand", [("standtabel", [num(rij[2]) or 0, num(rij[5]) or 0]), ("punten per ronde", [len(per_ronde), som_ronde]),
+                   ("onze uitslagen", [len(comp), sum(m["h"] if m["thuis"] == TEAM else m["u"] for m in comp)]),
+                   ("tegenstanders", None if None in tegen_r else [len(tegen_r), sum(v[0] for v in tegen_r)])])
+
+    # 3. per speler: formulieren, spelerspagina, teampagina, tweede uitlezing
+    lijst = lambda naam, wie: next((int(str(r[4]).split()[0]) for r in bijz_lists.get(naam, [])[1:] if len(r) > 4 and r[1] == wie and r[2] == TEAM), 0)
+    aantal = lambda ps, score: sum(int(m[1]) for p in ps if (m := re.fullmatch(rf"(\d+)x {score}", p)))
+    fins = lambda ps: sorted(int(p.split()[0]) for p in ps if re.fullmatch(r"\d+ finish", p))
+    for s in spelers:
+        sp = get(f"/web/speler?d={D}&l={s['id']}&s={S}")
+        rijen = spelerspagina(sp, TEAM)
+        stats = {txt(x.select_one(".label")): txt(x.select_one(".value")) for x in sp.select(".statistic")}
+        mijn = [g for g in games if s["naam"] in g["wij"].split(", ")]
+        her = [(soort, lw > lz) for ps, _, _ in hertel.values() for soort, wie, lw, lz in ps if s["naam"] in wie]
+        nw = lambda soort: [sum(game_type(g["onderdeel"]) == soort for g in mijn), sum(game_type(g["onderdeel"]) == soort and g["uitslag"] == "W" for g in mijn)]
+        hw = lambda soort: [sum(x == soort for x, _ in her), sum(x == soort and w for x, w in her)]
+        tabel = [s["singles"], round(s["singles"] * s["winst"] / 100)] if isinstance(s["singles"], int) and isinstance(s["winst"], (int, float)) else None
+        stem(f"{s['naam']} singles", [("formulieren", nw("Single")),
+                                      ("spelerspagina", [sum(r["single"] in ("W", "V") for r in rijen), sum(r["single"] == "W" for r in rijen)]),
+                                      ("teampagina", tabel), ("tweede uitlezing", hw("Single"))])
+        stem(f"{s['naam']} koppels", [("formulieren", nw("Koppel")),
+                                      ("spelerspagina", [sum(len(r["koppels"]) for r in rijen), sum(r["koppels"].count("W") for r in rijen)]),
+                                      ("tweede uitlezing", hw("Koppel"))])
+        stem(f"{s['naam']} round robin", [("formulieren", nw("RR")), ("tweede uitlezing", hw("RR"))])
+        mijn_b = [b for b in bijz if b["speler"] == s["naam"]]
+        comp_b = [b["prestatie"] for b in mijn_b if not beker(b["ronde"])]
+        her_b = [p for r, (_, _, pr) in hertel.items() for wie, p in pr if wie == s["naam"]]
+        her_comp = [p for r, (_, _, pr) in hertel.items() for wie, p in pr if wie == s["naam"] and not beker(r)]
+        stem(f"{s['naam']} 180's", [("formulieren", aantal(comp_b, 180)), ("spelerspagina", sum(r["m180"] for r in rijen if not beker(r["ronde"]))),
+                                    ("lijst 180ers", lijst("180ers", s["naam"])), ("teller spelerspagina", num(stats.get("180ers", 0)) or 0)])
+        stem(f"{s['naam']} 171's", [("formulieren", aantal(comp_b, 171)), ("spelerspagina", sum(r["m171"] for r in rijen if not beker(r["ronde"]))),
+                                    ("lijst 171ers", lijst("171ers", s["naam"])), ("tweede uitlezing", aantal(her_comp, 171))])
+        stem(f"{s['naam']} finishes", [("formulieren", fins(b["prestatie"] for b in mijn_b)), ("spelerspagina", sorted(f for r in rijen for f in r["finish"])),
+                                       ("tweede uitlezing", fins(her_b))])
+        darts = [int(b["prestatie"].split()[0]) for b in mijn_b if re.fullmatch(r"\d+ darter", b["prestatie"])]
+        stem(f"{s['naam']} snelste leg", [("formulieren", min(darts, default=None)), ("spelerspagina", min((v for r in rijen for v in r["sl"]), default=None))])
+    return fout, dict(telling)
 
 
 def parse_form(f, m, TEAM):
@@ -483,6 +623,11 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
     for t, name in [(1, "180ers"), (2, "Hoogste finishes"), (3, "Snelste leg"), (4, "171ers")]:
         tab = get(f"/web/scorelijst-bijzres/?d={D}&t={t}&s={S}&filter=P-{DIV}").find("table")
         bijz_lists[name] = rows(tab) if tab else [["(geen data)"]]
+    # dubbele controle: elk getal op twee manieren (anders minstens 3 van 4); lukt dat niet, dan dit team niet bijwerken
+    dfout, dubbel_telling = dubbel(TEAM, S, matches, games, [b for b in bijz if b["team"] == TEAM], spelers, stand_soup,
+                                   bijz_lists, tegenstanders)
+    if dfout:
+        raise ValueError(f"dubbele controle niet gehaald ({len(dfout)}x): " + "; ".join(dfout[:5]))
     controle += controleer(TEAM, matches, games, spelers, agg, stand, {"Single": pk_single, "Koppel": pk_koppel},
                            [b for b in bijz if b["team"] == TEAM], bijz_lists, tegenstanders)
     for c in controle:
@@ -572,6 +717,7 @@ def build_team(TEAM, TEAM_ID, S, out, nav):
               for b in bijz if b["team"] == TEAM],
         bijzrank=[dict(lijst=name, pos=num(r[0]), speler=r[1], waarde=num(r[4]))
                   for name, tab in bijz_lists.items() for r in ours_only(tab, 2)],
+        dubbel=dubbel_telling,  # {"2/2": n, "3/4": n}: zoveel getallen zijn bij deze build dubbel gecontroleerd
         verloop=verloop, tegenstanders=tegenstanders, ntfy=f"{short(TEAM)}-dbmn-uitslagen", xlsx=xlsx, ics=f"{short(TEAM)}.ics",
         club=CLUB_URL, clubtopic=CLUB_TOPIC, nav=nav, aanvang=f"{AANVANG[:2]}:{AANVANG[2:4]}", controle=controle,
     )
@@ -650,7 +796,7 @@ def summary(d, url):
                 gem=me.get("gem"), w=me.get("w"), v=me.get("v"), ntfy=d["ntfy"],
                 matches=[{k: m[k] for k in ("ronde", "datum", "tegen", "tu", "uitslag", "wij", "zij", "vrij", "locatie", "regl", "form_volgt")}
                          for m in d["matches"]],
-                bijz=d["bijz"], stand=d["stand"], tegenstanders=d["tegenstanders"], zone=me.get("zone", ""), ics=d["ics"], seizoen=d["seizoen"], controle=d["controle"], locatie=d["locatie"], spelers=[s["naam"] for s in d["spelers"]],
+                bijz=d["bijz"], stand=d["stand"], tegenstanders=d["tegenstanders"], zone=me.get("zone", ""), ics=d["ics"], seizoen=d["seizoen"], controle=d["controle"], locatie=d["locatie"], dubbel=d.get("dubbel", {}), spelers=[s["naam"] for s in d["spelers"]],
                 games=[[g["ronde"], g["type"], g["wij"], g["uitslag"], g["lw"], g["lz"]] for g in d["games"]])
 
 
